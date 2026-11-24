@@ -1,0 +1,286 @@
+	<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>フィールド討伐ゲーム v87</title>
+<!-- v109: 真ボス第1戦の必殺技チャージ完了時に2.5秒の敵停止チャンスを追加。 -->
+<!-- v108: 真ボス第1回カットインは元画像を復元。第2回のみ差し替え。真ボス雑魚に突撃ダメージを追加。 -->
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{ width:100%; height:100%; overflow:hidden; background:#a0b8f6; font-family:'Hiragino Sans','Segoe UI',sans-serif; touch-action:none; user-select:none; -webkit-user-select:none; }
+#game{ display:block; background:#a0b8f6; position:fixed; top:0; left:0; }
+
+  #hud{ position:fixed; top:0; left:0; right:0; padding:10px 12px; pointer-events:none; color:#fff; z-index:10; }
+  .bar-bg{ background:rgba(0,0,0,0.5); border-radius:6px; overflow:hidden; height:14px; margin-bottom:5px; border:1px solid rgba(255,255,255,0.35); }
+  .bar-fill{ height:100%; width:0%; transition:width 0.15s; }
+  #hp-fill{ background:linear-gradient(90deg,#ff4d4d,#ff9d9d); }
+  #xp-fill{ background:linear-gradient(90deg,#4da6ff,#9ecfff); }
+  #stats-row{ display:flex; justify-content:space-between; font-size:12px; text-shadow:1px 1px 3px #000; }
+  #score-hud{ position:fixed; bottom:8px; right:12px; top:auto; left:auto; z-index:31; color:#ffd700; font-size:18px; font-weight:bold; text-shadow:1px 1px 4px #000; background:rgba(0,0,0,0.55); border:1px solid rgba(255,215,0,0.45); border-radius:10px; padding:5px 10px; pointer-events:none; }
+  #achievement-panel{ position:fixed; bottom:52px; right:12px; top:auto; left:auto; z-index:31; color:#fff; font-size:11px; line-height:1.45; text-shadow:1px 1px 3px #000; background:rgba(0,0,0,0.48); border:1px solid rgba(255,255,255,0.2); border-radius:8px; padding:7px 9px; pointer-events:none; min-width:150px; }
+  #weapon-row{ position:fixed; top:60px; left:12px; display:flex; gap:6px; z-index:10; pointer-events:none; }
+  .w-icon{ width:34px; height:34px; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.4); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; color:#fff; position:relative; }
+  .w-icon span{ position:absolute; bottom:-2px; right:0; font-size:9px; background:#333; border-radius:4px; padding:0 3px; }
+
+  #joystick-zone{ position:fixed; left:0; bottom:0; width:50%; height:50%; z-index:5; }
+  #joy-base{ position:absolute; width:100px; height:100px; border-radius:50%; background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.4); display:none; }
+  #joy-thumb{ position:absolute; width:46px; height:46px; border-radius:50%; background:rgba(255,255,255,0.55); display:none; }
+
+  .overlay{ position:fixed; inset:0; background:rgba(5,5,15,0.94); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:20; color:#fff; text-align:center; padding:20px; }
+  .hidden{ display:none !important; }
+  .card-row{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:18px; max-width:440px; }
+  .card{ background:linear-gradient(160deg,#2a2f45,#1b1e2e); border:2px solid #6a5acd; border-radius:12px; padding:12px 8px; width:104px; cursor:pointer; transition:transform .1s, background .1s; }
+  .card:active{ transform:scale(0.94); background:#3a3f5a; }
+  .card.evo{ border-color:#ffd700; }
+  .card .icon{ font-size:30px; }
+  .card .name{ font-weight:bold; margin:6px 0 2px; font-size:13px; }
+  .card .desc{ font-size:10.5px; opacity:0.85; line-height:1.3; }
+  h1{ font-size:26px; margin-bottom:6px; color:#ffd700; }
+  p.sub{ font-size:13px; opacity:0.8; margin-bottom:4px; }
+  button.big-btn{ margin-top:22px; padding:12px 30px; font-size:16px; background:#6a5acd; border:none; border-radius:10px; color:#fff; }
+  button.link-btn{ margin-top:14px; padding:8px 16px; font-size:13px; background:transparent; border:1px solid rgba(255,255,255,0.4); border-radius:8px; color:#dcd4ff; display:block; }
+  #evo-tree-btn{ position:fixed; top:10px; right:12px; width:40px; height:40px; border-radius:50%; background:rgba(0,0,0,0.72); border:1px solid rgba(255,255,255,0.55); display:flex; align-items:center; justify-content:center; font-size:19px; z-index:30; box-shadow:0 2px 8px rgba(0,0,0,.45); }
+  #title-btn, #music-toggle-btn{ position:fixed; top:8px; width:36px; height:36px; border-radius:50%; background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.4); display:flex; align-items:center; justify-content:center; font-size:18px; z-index:13; }
+  #title-btn{ left:8px; }
+  #cutscene-screen{ background:#000; flex-direction:column; }
+  #cutscene-art img{ max-width:72vw; max-height:44vh; filter:drop-shadow(0 0 34px rgba(255,40,70,0.65)); animation:cutsceneZoom 3s ease-in-out infinite alternate; opacity:0; transition:opacity 1.2s ease-in; }
+  #cutscene-art img.show{ opacity:1; }
+  @keyframes cutsceneZoom{ from{ transform:scale(1); } to{ transform:scale(1.06); } }
+  #cutscene-text{ margin-top:26px; font-size:18px; color:#ffd700; min-height:28px; text-shadow:1px 1px 5px #000; opacity:0; transition:opacity 0.6s ease-in; padding:0 24px; text-align:center; }
+  #cutscene-text.show{ opacity:1; }
+  #bosscutin-screen{ background:rgba(0,0,0,0.92); padding:0; }
+  #bosscutin-art{ width:100%; max-width:640px; padding:0 12px; }
+  #bosscutin-art img{ width:100%; height:auto; display:block; border-radius:10px; box-shadow:0 0 40px rgba(255,60,90,0.5); opacity:0; transform:scale(0.85); transition:opacity 0.4s ease-out, transform 0.4s ease-out; }
+  #bosscutin-art img.show{ opacity:1; transform:scale(1); }
+  #bosscutin-skip{ margin-top:18px; }
+  #music-toggle-btn{ left:52px; }
+  #evo-tree-content{ width:100%; max-width:480px; max-height:62vh; overflow-y:auto; text-align:left; margin-top:12px; padding:0 4px; }
+  .evo-section-title{ margin:14px 0 6px; font-size:14px; color:#ffd700; }
+  .evo-row{ background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:10px; padding:10px; margin-bottom:8px; font-size:12.5px; }
+  .evo-row.evo-owned{ border-color:#4dff88; background:rgba(77,255,136,0.08); }
+  .evo-row.evo-ready{ border-color:#ffd700; background:rgba(255,215,0,0.12); }
+  .evo-mats{ font-size:13px; }
+  .evo-arrow{ opacity:0.6; margin:2px 0; }
+  .evo-result{ font-weight:bold; font-size:14px; color:#ffd76a; }
+  .evo-desc{ opacity:0.75; margin-top:3px; }
+  .evo-status{ margin-top:4px; font-size:11px; opacity:0.9; }
+  #dmg-pop-layer{ position:fixed; inset:0; pointer-events:none; z-index:8; }
+  #boss-hud{ position:fixed; top:64px; left:14%; right:14%; z-index:11; text-align:center; color:#fff; pointer-events:none; }
+  #boss-name{ font-weight:bold; text-shadow:1px 1px 3px #000; font-size:12px; margin-bottom:2px; }
+  #boss-hp-fill{ background:linear-gradient(90deg,#ff5e5e,#ffd27a); }
+  #ultimate-hud{ margin-top:6px; }
+  #ultimate-label{ font-size:11px; color:#ff9dc4; text-shadow:1px 1px 3px #000; margin-bottom:2px; }
+  #ultimate-fill{ background:linear-gradient(90deg,#ff2f92,#ff9dc4); }
+  #trueboss-special-hud{ position:fixed; left:50%; bottom:12px; transform:translateX(-50%); z-index:22; display:none; gap:6px; padding:6px; background:rgba(12,6,24,.82); border:1px solid rgba(255,255,255,.28); border-radius:14px; box-shadow:0 4px 18px rgba(0,0,0,.45); max-width:96vw; }
+  #trueboss-special-hud.show{ display:flex; }
+  #trueboss-special-hud{flex-wrap:wrap;justify-content:center;}
+  #trueboss-special-hud .tb-scope{width:100%;text-align:center;color:#fff0ad;font-weight:800;font-size:clamp(11px,2.5vw,14px);padding:2px 4px;}
+  #trueboss-special-hud .tb-effect{font-size:clamp(10px,2vw,12px);color:#e9f6ff;line-height:1.25;max-width:155px;min-height:30px;}
+  #trueboss-special-hud .tb-special{min-width:120px;max-width:175px;flex:1 1 120px;text-align:center;}
+
+
+  #trueboss-special-pause-notice{
+    position:fixed; left:50%; top:42%; transform:translate(-50%,-50%);
+    z-index:90; display:none; pointer-events:none; text-align:center;
+    padding:14px 24px; border:2px solid #ffd36e; border-radius:18px;
+    color:#fff; font-weight:900; font-size:clamp(18px,4vw,30px);
+    background:rgba(28,8,38,.88); text-shadow:0 2px 8px #000;
+    box-shadow:0 0 28px rgba(255,190,90,.8);
+    animation:trueBossPausePulse .7s ease-in-out infinite alternate;
+  }
+  #trueboss-special-pause-notice small{display:block;font-size:14px;margin-top:5px;color:#ffe7ad;}
+  @keyframes trueBossPausePulse{from{transform:translate(-50%,-50%) scale(1)}to{transform:translate(-50%,-50%) scale(1.04)}}
+  .tb-special button.ready{min-height:42px;font-size:14px;transform:scale(1.04);border:2px solid #fff;}
+  @media(max-width:700px){.tb-special button.ready{min-height:46px;font-size:13px;}}
+
+  .tb-special{ width:112px; min-width:0; color:#fff; text-align:center; font-size:10px; }
+  .tb-special .tb-gauge{ height:7px; margin:3px 0 4px; background:rgba(255,255,255,.16); border-radius:5px; overflow:hidden; }
+  .tb-special .tb-fill{ height:100%; width:0%; background:linear-gradient(90deg,#7fd1ff,#fff); transition:width .12s linear; }
+  .tb-special button{ width:100%; padding:5px 3px; border:1px solid rgba(255,255,255,.35); border-radius:8px; background:rgba(80,60,100,.8); color:#fff; font-size:10px; cursor:pointer; }
+  .tb-special button.ready{ background:linear-gradient(90deg,#ff69b4,#ffd15a); color:#241020; font-weight:bold; box-shadow:0 0 12px rgba(255,105,180,.65); }
+  .tb-special button:disabled{ opacity:.55; cursor:not-allowed; }
+  @media(max-width:700px){ #trueboss-special-hud{ bottom:8px; gap:3px; padding:4px; } .tb-special{ width:78px; font-size:9px; } .tb-special button{ font-size:9px; padding:5px 1px; } }
+  #revive-hud{ position:fixed; top:8px; left:96px; z-index:12; color:#fff; font-size:14px; text-shadow:1px 1px 3px #000; background:rgba(0,0,0,0.45); border-radius:14px; padding:4px 10px; }
+  #boss-announce{ position:fixed; top:32%; left:0; right:0; text-align:center; z-index:15; pointer-events:none; transition:opacity 0.4s; }
+  #boss-announce-box{ display:inline-block; background:rgba(120,0,0,0.8); border:2px solid #ffd700; border-radius:10px; padding:12px 24px; color:#ffd700; font-size:19px; font-weight:bold; text-shadow:1px 1px 4px #000; white-space:pre-line; line-height:1.45; }
+
+/* ===== DEBUG MODE START: このブロックを削除すればデバッグ機能を完全撤去できます ===== */
+#debug-panel{position:fixed;top:10px;left:10px;z-index:99999;width:300px;max-height:92vh;overflow:auto;padding:12px;background:rgba(8,8,18,.94);border:1px solid #ff69b4;border-radius:10px;color:#fff;font:12px/1.45 monospace;box-shadow:0 0 20px rgba(255,105,180,.35)}
+#debug-panel.hidden{display:none}
+#debug-panel .dbg-title{font:bold 15px sans-serif;color:#ff69b4;margin-bottom:8px}
+#debug-panel .dbg-row{margin:3px 0}
+#debug-panel button{margin:3px 2px;padding:5px 7px;border:1px solid rgba(255,255,255,.35);border-radius:6px;background:#262038;color:#fff;cursor:pointer;font-size:11px}
+#debug-panel button:hover{background:#3a2b55}
+#debug-panel .dbg-on{color:#7fffea}
+#debug-panel .dbg-warn{color:#ffd76a}
+/* ===== DEBUG MODE END ===== */
+
+</style>
+
+<style id="v70-hp-xp-player-style">
+/* v70: HP/EXPは主人公の直下へ移動。上部のHP/EXPバーは非表示。 */
+#hud > .bar-bg{display:none !important;}
+</style>
+</head>
+<body>
+<audio id="bgm-audio" preload="auto" loop style="display:none"><source src="assets/audio/2347b7e6685986a13d21db97.ogg" type="audio/ogg"></audio><audio id="boss-phase1-bgm" preload="auto" loop style="display:none"><source src="assets/audio/ac43e52528cd649296940b4a.mp3" type="audio/mpeg"></audio><audio id="boss-phase2-bgm" preload="auto" loop style="display:none"><source src="assets/audio/4455810e986f1cd332d53bf6.mp3" type="audio/mpeg"></audio><audio id="boss-phase3-bgm" preload="auto" loop style="display:none"><source src="assets/audio/bc33d0a58bb943a6b26dac8f.mp3" type="audio/mpeg"></audio><audio id="trueboss-bgm" preload="auto" loop style="display:none"><source src="assets/audio/ff7b176382220d6227209f9b.mp3" type="audio/mpeg"></audio><audio id="bullethell-bgm" preload="auto" loop style="display:none"><source src="assets/audio/edfcdeab5c7f65386b8b6aa7.mp3" type="audio/mpeg"></audio>
+
+<canvas id="game"></canvas>
+<!-- 弾幕回避中のHP表示: Canvas外の最前面レイヤー -->
+<div id="bullethell-hp-hud" aria-label="弾幕回避中の主人公HP" style="display:none;position:fixed;top:86px;left:16px;z-index:2147483000;pointer-events:none;min-width:204px;max-width:calc(100vw - 32px);padding:10px 12px;background:rgba(0,0,0,.88);border:2px solid rgba(255,255,255,.9);border-radius:12px;color:#fff;font:700 17px system-ui,sans-serif;box-shadow:0 3px 12px #0009;">
+ <div id="bullethell-hp-text" style="margin-bottom:6px">HP -- / --</div>
+ <div style="width:100%;height:17px;background:#454545;border:1px solid white;border-radius:6px;overflow:hidden"><div id="bullethell-hp-fill" style="width:100%;height:100%;background:#58dc83"></div></div>
+</div>
+
+<div id="score-hud">SCORE: <span id="score-val">0</span></div>
+<div id="achievement-panel">
+  <div style="font-weight:bold; color:#ffd700; margin-bottom:5px;">📊 記録・実績</div>
+  <div>⏱️ プレイ時間: <span id="stat-time">0</span>分</div>
+  <div>💥 累計ダメージ: <span id="stat-damage">0</span></div>
+  <div>🐾 累計雑魚敵討伐数: <span id="ach-minions">0</span> / 100,000</div>
+  <div>🐱 かたちゃん: <span id="ach-katachan">0</span> / 100</div>
+  <div>👑 王者かたちゃん: <span id="ach-king">0</span> / 10</div>
+</div>
+<div id="dmg-pop-layer"></div>
+
+<div id="hud" class="hidden">
+  <div class="bar-bg"><div class="bar-fill" id="hp-fill"></div></div>
+  <div class="bar-bg" style="height:9px;"><div class="bar-fill" id="xp-fill"></div></div>
+  <div id="stats-row">
+    <span id="lv-text">Lv.1</span>
+    <span id="stage-text"></span>
+    <span id="diff-text"></span>
+    <span id="time-text">00:00</span>
+    <span id="kill-text">討伐: 0</span>
+  </div>
+</div>
+<div id="weapon-row"></div>
+
+<div id="title-btn" class="hidden">🏠</div>
+<div id="music-toggle-btn">🔊</div>
+
+<div id="boss-hud" class="hidden">
+  <div id="boss-name"></div>
+  <div class="bar-bg" style="height:10px;"><div class="bar-fill" id="boss-hp-fill"></div></div>
+  <div id="ultimate-hud" class="hidden">
+    <div id="ultimate-label">💗 だいすきビーム</div>
+    <div class="bar-bg" style="height:9px;"><div class="bar-fill" id="ultimate-fill"></div></div>
+  </div>
+</div>
+<div id="trueboss-special-hud" aria-label="真ボス専用武器">
+  <div class="tb-scope">🎯 必殺技の効果範囲：画面内の真ボス全員（距離制限なし）</div>
+  <div class="tb-special"><div>🧸 くまぬい</div><div class="tb-gauge"><div id="tb-fill-teddy" class="tb-fill"></div></div><div class="tb-effect" title="効果対象：真ボス全員">真ボス全員の攻撃力を65%低下・8.5秒</div><button id="tb-btn-teddy" disabled>起動</button></div>
+  <div class="tb-special"><div>🗼 タワー</div><div class="tb-gauge"><div id="tb-fill-tower" class="tb-fill"></div></div><div class="tb-effect" title="効果対象：真ボス全員">真ボス全員に最大HPの8%ダメージ</div><button id="tb-btn-tower" disabled>起動</button></div>
+  <div class="tb-special"><div>💐 ハートブーケ</div><div class="tb-gauge"><div id="tb-fill-bouquet" class="tb-fill"></div></div><div class="tb-effect" title="効果対象：真ボス全員">真ボス全員に最大HPの18%ダメージ</div><button id="tb-btn-bouquet" disabled>起動</button></div>
+  <div class="tb-special"><div>🎫 ガチャチケ</div><div class="tb-gauge"><div id="tb-fill-ticket" class="tb-fill"></div></div><div class="tb-effect" title="効果対象：真ボス全員">真ボス全員の被ダメージを1.55倍・8.5秒</div><button id="tb-btn-ticket" disabled>起動</button></div>
+</div>
+<div id="trueboss-special-pause-notice">必殺技チャンス！<small>敵が一時停止中・光っているボタンを押そう</small></div>
+<div id="revive-hud" class="hidden">💖 <span id="revive-count">0</span></div>
+<div id="boss-announce" class="hidden"><div id="boss-announce-box"></div></div>
+<div id="boss-bind-hud" class="hidden" style="position:fixed;left:50%;top:28%;transform:translateX(-50%);z-index:80;text-align:center;pointer-events:none;background:rgba(30,0,20,.88);border:3px solid #ff1493;border-radius:18px;padding:16px 28px;box-shadow:0 0 30px rgba(255,20,147,.65);color:#fff;font-weight:bold;text-shadow:0 2px 5px #000;">
+  <div style="font-size:26px;color:#ff69b4;">💗 拘束された！</div>
+  <div style="font-size:18px;margin-top:8px;">数字の「1」を連打して脱出！</div>
+  <div id="boss-bind-count" style="font-size:32px;color:#fff;margin-top:6px;">0 / 15</div>
+</div>
+
+<div id="joystick-zone">
+  <div id="joy-base"></div>
+  <div id="joy-thumb"></div>
+</div>
+
+<div class="overlay hidden" id="difficulty-screen">
+  <h1>難易度選択</h1>
+  <p class="sub">プレイする難易度を選んでください</p>
+  <div class="card-row" id="difficulty-cards"></div>
+  <button class="link-btn" id="evo-tree-link-diff">🌳 進化ツリーを見る</button>
+</div>
+
+<div class="overlay hidden" id="character-screen">
+  <h1>ノーマルモード</h1>
+  <p class="sub">主人公を選んでください</p>
+  <div class="card-row" id="character-cards"></div>
+</div>
+
+<div class="overlay hidden" id="start-screen">
+  <h1>フィールド討伐</h1>
+  <p class="sub">寄せくる敵を武器で倒し、経験値でレベルアップ！</p>
+  <p class="sub">最初の武器を1つ選んでください</p>
+  <div class="card-row" id="start-cards"></div>
+  <button class="link-btn" id="evo-tree-link-start">🌳 進化ツリーを見る</button>
+</div>
+
+<div class="overlay hidden" id="levelup-screen">
+  <h1>レベルアップ！</h1>
+  <p class="sub">強化する内容を選んでください</p>
+  <div class="card-row" id="levelup-cards"></div>
+</div>
+
+<div class="overlay hidden" id="gameover-screen">
+  <h1 id="go-title">やられた…</h1>
+  <p class="sub" id="go-stats"></p>
+  <button class="big-btn" id="retry-btn">もう一度挑戦</button>
+  <button class="link-btn" id="evo-tree-link-go">🌳 進化ツリーを見る</button>
+</div>
+
+<div id="evo-tree-btn" class="hidden">🌳</div>
+
+<div class="overlay hidden" id="evo-tree-screen">
+  <h1>進化ツリー</h1>
+  <div id="evo-tree-content"></div>
+  <button class="big-btn" id="evo-tree-close">閉じる</button>
+</div>
+
+<div class="overlay hidden" id="ending-screen">
+  <h1>🎉 災厄を打ち倒した！ 🎉</h1>
+  <p class="sub">王者かたちゃんはついに沈黙した…</p>
+  <p class="sub" id="ending-stats"></p>
+  <button class="big-btn" id="ending-continue-btn">そのまま続ける</button>
+  <button class="link-btn" id="ending-title-btn">タイトルに戻る</button>
+</div>
+  <div class="overlay hidden" id="cutscene-screen">
+  <div id="cutscene-art"></div>
+  <div id="cutscene-text"></div>
+  <button class="link-btn" id="cutscene-skip">スキップ ▶</button>
+</div>
+
+<div class="overlay hidden" id="bosscutin-screen">
+  <div id="bosscutin-art"></div>
+  <button class="link-btn" id="bosscutin-skip">スキップ ▶</button>
+</div>
+
+<div id="debug-panel" class="hidden">
+  <div class="dbg-title">🛠 DEBUG MODE <span style="font-size:10px;color:#aaa">[F2で表示/非表示]</span></div>
+  <div id="debug-status"></div>
+  <div>
+    <button id="dbg-heal">全回復</button>
+    <button id="dbg-inv">無敵 ON/OFF</button>
+    <button id="dbg-xp">+1000 XP</button>
+    <button id="dbg-xp10000">+10000 XP</button>
+    <button id="dbg-level">+1 LEVEL</button>
+  </div>
+  <div>
+    <button id="dbg-boss">ラスボス即時出現</button>
+    <button id="dbg-stage">+60秒（次Stage）</button>
+    <button id="dbg-clear">敵全消去</button>
+  </div>
+  <div>
+    <button id="dbg-score">+10000 SCORE</button>
+    <button id="dbg-damage">+10000 累計ダメージ</button>
+    <button id="dbg-trueboss">👑 真のボスモード解放</button>
+    <button id="dbg-bullethell">☄ 弾幕回避を強制起動</button>
+    <button id="dbg-close">閉じる</button>
+  </div>
+</div>
+
+<script src="js/game-1.js"></script>
+
+<style>
+#storySceneOverlay{position:fixed;inset:0;z-index:999999;background:#000;display:none}
+#storySceneOverlay iframe{width:100%;height:100%;border:0;display:block;background:#111}
+</style>
+<div id="storySceneOverlay"><iframe id="storySceneFrame" allow="autoplay" title="ストーリー"></iframe></div>
+<script src="js/game-2.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>18ページ画像ビューアー（画像埋め込み版）</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;background:#111;color:#eee;font-family:system-ui,"Noto Sans JP",sans-serif;overflow:hidden}
+.viewer{display:flex;justify-content:center;align-items:center;width:100%;height:calc(100vh - 64px);padding:8px 10px 4px}
+.stage{width:min(1200px,100%);height:100%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.stage img{width:100%;height:100%;object-fit:contain}
+.controls{height:56px;flex:0 0 56px;display:flex;justify-content:center;align-items:center;gap:8px;padding:6px 8px;background:#181818;border-top:1px solid #333}
+button{border:1px solid #555;background:#282828;color:#eee;border-radius:8px;padding:9px 24px;font-size:15px;cursor:pointer}
+button:hover{background:#3a3a3a}
+#resumeGame{background:#315d8f;border-color:#4679b3}
+.hidden{display:none!important}
+#startOverlay{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.88);padding:20px}
+#startCard{max-width:520px;text-align:center;background:#202020;border:1px solid #555;border-radius:16px;padding:28px 24px;box-shadow:0 12px 40px #000}
+#startEnding{background:#315d8f;border-color:#6da0d8;font-size:18px;padding:14px 28px}
+#startMessage{color:#bbb;font-size:14px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="viewer"><div class="stage" id="stage"></div></div>
+<div class="controls">
+<button id="skip">スキップ</button>
+<button id="resumeGame" class="hidden">🎮 ゲームに戻る</button>
+</div>
+<div id="startOverlay"><div id="startCard"><h2>エンディング</h2><p>音楽を再生してエンディングを開始します。</p><button id="startEnding">エンディングを見る</button><p id="startMessage">ボタンを押すと音楽が始まります。</p></div></div>
+
+<audio id="endingBgm" preload="auto" loop src="../assets/audio/03cc7c71cd5cd1212beb9a89.mp3"></audio>
+
+<script>
+const TOTAL=18;
+
+// ファイル名の番号＝ページ番号で埋め込み。
+// 今回は6～9の画像が添付されていないため、そこは空欄。
+const embeddedImages = {1:'../assets/images/aeb9266e3e3d319495433d59.png',2:'../assets/images/aa654593410fae11144d25ab.png',3:'../assets/images/ebb3ff4006b908c8fea21e3c.png',4:'../assets/images/0d7738c1cfa776dc8c06f00d.png',5:'../assets/images/d15e0cbc66db044aedd2a85e.png',10:'../assets/images/aebdef07a48bae690d900b8d.png',11:'../assets/images/c362adabf79afe29551fc408.png',12:'../assets/images/ad1bcab82138205fef2e6498.png',13:'../assets/images/e1c6ed12f6d75983ba93a10b.png',14:'../assets/images/c362adabf79afe29551fc408.png',15:'../assets/images/c98da30836d4d6b9cdbbba2d.png',16:'../assets/images/93875c23d6dd5bc2b109f997.png',17:'../assets/images/d7b986c9b58b48ffd608f306.png',18:'../assets/images/b94377ab4aa0c9efb221000c.png',
+6:'../assets/images/8d6388a13febe0bca1fbec99.png',
+7:'../assets/images/98fc2c76a1f6bdcde88a355b.png',
+8:'../assets/images/9aa259bfceee867fa8766618.png',
+9:'../assets/images/ecf95b60cc1bf7eca543a14f.png'};
+
+const AUTO_PLAY_MS=3000;
+let current=0;
+let images=Array(TOTAL).fill(null);
+let db;
+
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    let r=indexedDB.open("image-viewer-18-pages-embedded-v2",1);
+    r.onupgradeneeded=e=>e.target.result.createObjectStore("slides");
+    r.onsuccess=e=>{db=e.target.result;resolve()};
+    r.onerror=()=>reject(r.error);
+  });
+}
+
+function load(){
+  return new Promise(resolve=>{
+    let tx=db.transaction("slides","readonly"),s=tx.objectStore("slides"),n=0;
+    for(let i=0;i<TOTAL;i++){
+      let r=s.get(i);
+      r.onsuccess=()=>{
+        images[i]=r.result || embeddedImages[i+1] || null;
+        if(++n===TOTAL)resolve();
+      };
+      r.onerror=()=>{
+        images[i]=embeddedImages[i+1] || null;
+        if(++n===TOTAL)resolve();
+      };
+    }
+  });
+}
+
+function save(i,v){
+  return new Promise((resolve,reject)=>{
+    if(!db){resolve();return;}
+    let tx=db.transaction("slides","readwrite");
+    tx.objectStore("slides").put(v,i);
+    tx.oncomplete=resolve;
+    tx.onerror=()=>reject(tx.error);
+  });
+}
+
+function render(){
+  const d=images[current];
+  const stage=document.getElementById("stage");
+  stage.innerHTML=d
+    ? `<img src="${d}" alt="${current+1}ページ">`
+    : `<div style="color:#777;font-size:24px">${current+1}ページ</div>`;
+}
+
+function finish(){
+  document.getElementById("skip").classList.add("hidden");
+  document.getElementById("resumeGame").classList.remove("hidden");
+}
+
+function nextSlide(){
+  if(current>=TOTAL-1){finish();return;}
+  current++;
+  render();
+}
+
+const endingBgm=document.getElementById("endingBgm");
+window.addEventListener("pagehide",()=>endingBgm.pause());
+let slideshowTimer=null;
+let endingStarted=false;
+async function startBgm(){
+  if(!endingBgm) return false;
+  try{
+    endingBgm.volume=1;
+    await endingBgm.play();
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+function beginSlideshow(){
+  if(slideshowTimer) clearInterval(slideshowTimer);
+  slideshowTimer=setInterval(()=>{
+    if(current>=TOTAL-1){
+      clearInterval(slideshowTimer);
+      finish();
+    }else{
+      nextSlide();
+    }
+  },AUTO_PLAY_MS);
+}
+document.getElementById("startEnding").onclick=async()=>{
+  const msg=document.getElementById("startMessage");
+  const ok=await startBgm();
+  if(!ok){
+    msg.textContent="音楽を再生できませんでした。ブラウザのタブがミュートされていないか確認して、もう一度押してください。";
+    return;
+  }
+  if(!endingStarted){
+    endingStarted=true;
+    document.getElementById("startOverlay").classList.add("hidden");
+    beginSlideshow();
+  }
+};
+document.getElementById("skip").onclick=()=>{ if(!endingStarted) return; if(slideshowTimer){clearInterval(slideshowTimer);slideshowTimer=null;}if(endingBgm)endingBgm.pause();if(window.parent!==window){window.parent.postMessage({type:'story-scene-close'},'*');}else{current=TOTAL-1;render();finish();}};
+document.getElementById("resumeGame").onclick=()=>{
+  window.location.href="v150_resume_from_ending.html?resume=1";
+};
+
+(async()=>{
+  try{
+    await openDB();
+    await load();
+  }catch(e){
+    for(let i=0;i<TOTAL;i++) images[i]=embeddedImages[i+1]||null;
+  }
+  render();
+})();
+</script>
+<script>document.addEventListener('click',function(e){const b=e.target.closest&&e.target.closest('button');if(b&&(b.id==='resumeGame'||/ゲームに戻る/.test(b.textContent||''))){if(window.parent!==window){e.preventDefault();e.stopImmediatePropagation();window.parent.postMessage({type:'story-scene-close'},'*');}}},true);</script></body>
+</html>

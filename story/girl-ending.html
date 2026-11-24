@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>女の子エンディング</title><style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#111;color:#fff;font-family:system-ui,sans-serif;overflow:hidden}
+#stage{position:relative;width:100vw;height:100dvh;display:flex;align-items:center;justify-content:center;background:#111;cursor:pointer}
+#slide{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;user-select:none;-webkit-user-drag:none}
+#counter{display:none}
+.controls{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;width:min(96vw,720px)}
+.hidden{display:none!important}
+#startScreen{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;background:#000b}
+#startBtn{font-size:clamp(20px,3vw,34px);padding:18px 36px;background:#b02d78;border:2px solid #ffd4ec;border-radius:18px}
+#skip{background:#b02d78e8}
+#resume{background:#0b6472e8}
+button{border:1px solid #ffffff70;border-radius:12px;padding:10px 16px;background:#171717dc;color:white;font-size:16px;cursor:pointer;backdrop-filter:blur(4px)}button:hover{background:#333}button:focus-visible{outline:3px solid #7deaff;outline-offset:2px}
+#resume{background:#0b6472e8}#hint{position:absolute;right:12px;top:12px;font-size:12px;background:#0008;padding:7px 10px;border-radius:10px}
+@media(max-width:600px){button{font-size:14px;padding:9px 12px}#hint{display:none}}
+</style></head><body>
+<div id="stage" aria-label="女の子エンディング"><img id="slide" alt="女の子エンディング画像"><div id="counter"></div><div id="startScreen"><button id="startBtn">エンディングを見る</button></div>
+<div class="controls"><button id="skip" class="hidden">スキップ ▶</button><button id="resume" class="hidden">🎮 ゲームに戻る</button></div></div>
+<audio id="endingBgm" preload="auto" loop src="../assets/audio/03cc7c71cd5cd1212beb9a89.mp3"></audio>
+<script>
+const images=["../assets/images/aeb9266e3e3d319495433d59.png", "../assets/images/98100526be3e5ed8d244931d.png", "../assets/images/ebb3ff4006b908c8fea21e3c.png", "../assets/images/3a18fc5a641bf4f0b74e9178.png", "../assets/images/cbd02665ec70ac4b87f6216f.png", "../assets/images/145618e5c415c5b89afcfd36.png", "../assets/images/002e8a889cb2354735ddb30f.png", "../assets/images/3eae3e56f94bd2ebd18b5861.png"];
+
+let index=0, playing=false, timer=null;
+const slide=document.getElementById('slide');
+const startScreen=document.getElementById('startScreen');
+const skip=document.getElementById('skip');
+const resume=document.getElementById('resume');
+function render(){slide.src=images[index]; document.title=`女の子エンディング`;}
+function finish(){playing=false; if(timer){clearInterval(timer);timer=null;} skip.classList.add('hidden');resume.classList.remove('hidden');}
+function advance(){if(!playing)return; if(index<images.length-1){index++;render();if(index===images.length-1)finish();}}
+const endingBgm=document.getElementById("endingBgm");
+function stopEndingBgm(){endingBgm.pause();}
+window.addEventListener("pagehide",stopEndingBgm);
+function begin(){if(playing)return;endingBgm.currentTime=0;endingBgm.play().catch(e=>{console.warn("Ending BGM:",e);}); index=0;playing=true;startScreen.classList.add('hidden');resume.classList.add('hidden');skip.classList.remove('hidden');render();timer=setInterval(advance,3000);}
+document.getElementById('startBtn').addEventListener('click',begin);
+skip.addEventListener('click',e=>{e.stopPropagation();stopEndingBgm();if(window.parent!==window){window.parent.postMessage({type:'story-scene-close'},'*');}else{index=images.length-1;render();finish();}});
+resume.addEventListener('click',e=>{e.stopPropagation();stopEndingBgm();window.location.href='v150_resume_from_ending.html?resume=1';});
+render();
+</script><script>document.addEventListener('click',function(e){const b=e.target.closest&&e.target.closest('button');if(b&&(b.id==='resume'||/ゲームに戻る/.test(b.textContent||''))){if(window.parent!==window){e.preventDefault();e.stopImmediatePropagation();window.parent.postMessage({type:'story-scene-close'},'*');}}},true);</script></body></html>

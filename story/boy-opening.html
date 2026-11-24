@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>男の子用オープニング</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#111;color:#fff;font-family:system-ui,sans-serif;overflow:hidden}
+#stage{height:100%;display:flex;align-items:center;justify-content:center;position:relative}
+#slide{max-width:100%;max-height:100%;object-fit:contain}
+#empty{display:none;text-align:center;color:#ddd;padding:24px;font-size:22px}
+#counter{position:absolute;top:12px;left:12px;background:#0009;padding:8px 12px;border-radius:10px}
+.controls{position:absolute;bottom:18px;left:0;right:0;display:flex;justify-content:center;gap:12px}
+button{font-size:17px;padding:12px 22px;border-radius:14px;border:1px solid #fff8;background:#172b52;color:white}
+#start{position:fixed;inset:0;background:#000d;display:flex;align-items:center;justify-content:center;z-index:5}
+#start div{text-align:center;background:#17365f;padding:28px;border:2px solid #cde6ff;border-radius:18px;max-width:90vw}
+#start p{line-height:1.7;color:#e5f3ff}
+small{color:#d2e7ff}
+</style></head><body>
+<audio id="bgm" preload="auto" loop src="../assets/audio/e5fb6a50387346c4f95cb3d5.mp3"></audio>
+<div id="start"><div><h2>男の子用オープニング</h2>
+
+<button id="begin">オープニングを見る</button></div></div>
+<main id="stage"><img id="slide" alt="オープニング画像"><div id="empty"></div>
+<div class="controls"><button id="skip">スキップ</button></div></main>
+<script>
+const slides=["../assets/images/a3cc617dbb4724a4b1089cc0.jpg","../assets/images/c87eeb816013466948bfb3c7.jpg","../assets/images/29cbbac8b768cb63d6d76c16.jpg","../assets/images/01c8c9162b8a71bd6f507eaf.jpg","../assets/images/33c32b9261bee6e45068f37b.jpg","../assets/images/4259639665fdc0e6492dff67.jpg","../assets/images/03ccb56518f6e74fc47fb8e5.jpg","../assets/images/4da4ac89cbed9df8c537ecbe.jpg","../assets/images/5db8592ec72a6fea496d35f0.jpg","../assets/images/a42a578cf5334d76475a028d.jpg","../assets/images/61c8aaea739685b968d2272d.jpg","../assets/images/23ba8a5e6c9d0649938aea74.jpg","../assets/images/c04f2f6b5d7766f4c21e5fa5.jpg","../assets/images/09c9bfd3ecf2a9fb9cacce42.jpg","../assets/images/bd72eb9c17cd3991f9522e06.jpg"];
+let index=0,timer=null;
+const img=document.getElementById('slide'), empty=document.getElementById('empty');
+function render(){
+ 
+ if(slides[index]){img.src=slides[index];img.style.display='block';empty.style.display='none';}
+ else{img.removeAttribute('src');img.style.display='none';empty.style.display='block';empty.innerHTML='<b>第'+(index+1)+'コマ</b><br>画像は後から追加します';}
+}
+function next(){if(index<14){index++;render();}else{stop();}}
+function stop(){if(timer)clearInterval(timer);timer=null;}
+document.getElementById('begin').onclick=()=>{document.getElementById('start').remove();render();const bgm=document.getElementById('bgm');bgm.currentTime=0;bgm.play().catch(()=>{});timer=setInterval(next,3000);};
+document.getElementById('skip').onclick=()=>{stop();const bgm=document.getElementById('bgm');if(bgm)bgm.pause();if(window.parent!==window){window.parent.postMessage({type:'story-scene-close'},'*');}else{index=14;render();}};
+render();
+</script></body></html>

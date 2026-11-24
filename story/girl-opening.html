@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>オープニング</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#111;color:#fff;font-family:system-ui,sans-serif;overflow:hidden}
+.app{position:relative;width:100vw;height:100dvh;display:block;background:#111}
+header,footer,.nav{display:none!important}
+main#stage{position:absolute;inset:0;width:100%;height:100%;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#111}
+#image{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;user-select:none;-webkit-user-drag:none}
+#placeholder{display:none;text-align:center;padding:30px;color:#bbb}
+#placeholder strong{display:block;color:#fff;font-size:22px;margin-bottom:8px}
+.drop{display:none!important}
+.play-controls{position:absolute;z-index:20;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;width:min(96vw,720px);height:auto;padding:0;background:transparent;border:0}
+button{border:1px solid #ffffff70;border-radius:12px;padding:10px 16px;background:#171717dc;color:white;font-size:16px;cursor:pointer;backdrop-filter:blur(4px)}button:hover{background:#333}button:focus-visible{outline:3px solid #7deaff;outline-offset:2px}
+#skip{background:#b02d78e8;border:2px solid #ffd4ec;border-radius:18px}
+#returnGame{background:#0b6472e8}
+.hidden{display:none!important}
+#startOverlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);padding:20px}
+#startCard{width:min(440px,100%);text-align:center;background:#4b1738e8;border:2px solid #ffd4ec;border-radius:18px;padding:30px 24px;box-shadow:0 12px 40px #000}
+#startCard h2{margin:0 0 12px;font-size:25px;color:#fff}
+#startCard p{color:#f3d7e8;font-size:14px;line-height:1.6;margin:0 0 18px}
+#startOpening{background:#b02d78e8;border:2px solid #ffd4ec;color:#fff;border-radius:18px;font-size:18px;padding:14px 28px;cursor:pointer}
+#startOpening:hover{background:#c23c8c}
+@media(max-width:600px){button{font-size:14px;padding:9px 12px}}
+</style>
+</head>
+<body>
+<audio id="bgm" preload="auto" loop src="../assets/audio/e5fb6a50387346c4f95cb3d5.mp3"></audio>
+
+<div id="startOverlay"><div id="startCard"><h2>オープニング</h2><p>準備ができたら開始ボタンを押してください。</p><button id="startOpening" type="button">オープニングを見る</button></div></div>
+<div class="app">
+<header>
+  <div class="title">オープニング</div>
+</header>
+
+<main id="stage">
+  <img id="image" alt="">
+  <div id="placeholder">
+    <strong>13枚目の画像を表示できません</strong>
+    <div>必要な場合は「13を追加 / 変更」から画像を変更できます。</div>
+  </div>
+  <div class="drop" id="drop">ここに13枚目の画像をドロップ</div>
+  <div class="nav">
+    <button id="prev" aria-label="前へ">‹</button>
+    <button id="next" aria-label="次へ">›</button>
+  </div>
+</main>
+<div class="play-controls">
+  <button id="skip" type="button">スキップ ▶</button>
+  <button id="returnGame" type="button" class="hidden">🎮 ゲームに戻る</button>
+</div>
+<footer>
+  <div class="controls">
+    <button id="first">最初へ</button>
+    <button id="prev2">← 前へ</button>
+    <button id="next2">次へ →</button>
+    <button id="last">最後へ</button>
+    <label class="upload-label" for="file13">13を追加 / 変更</label>
+    <input id="file13" type="file" accept="image/*">
+  </div>
+  <div class="thumbs" id="thumbs"></div>
+</footer>
+</div>
+
+<script>
+const embedded = {"1":"../assets/images/0e124c8f700a384e64fda7f9.png","2":"../assets/images/d977dbe86b10c21574599457.png","3":"../assets/images/84abef09b209b95062d03d5f.png","4":"../assets/images/96cb3214ae52eae5f4c6cded.png","5":"../assets/images/6e39fe2df39bbfe2383a8501.png","6":"../assets/images/5bdf45bea1b5cc5d3f9f876e.png","7":"../assets/images/2f410f3e8a85111512e80971.png","8":"../assets/images/678e7075d044ac5633195357.png","9":"../assets/images/78e6fb57329a62b27d8da77d.png","10":"../assets/images/96e3acb84acba7b77f3a9ac9.png","11":"../assets/images/07b2302a1326e760dc7e6e82.png","12":"../assets/images/3f5a2df1b6272223bee83e5a.png","14":"../assets/images/4271a44ede23c2673c0077d6.png","15":"../assets/images/3de634dda8c897a95cb915df.png","16":"../assets/images/7ab4b95f58f5ce0a0047893d.png","13":"../assets/images/c19e8790f4af866109e9f3af.png"};
+let current = 1;
+let custom13 = null;
+const img = document.getElementById('image');
+const placeholder = document.getElementById('placeholder');
+const thumbs = document.getElementById('thumbs');
+const stage = document.getElementById('stage');
+const drop = document.getElementById('drop');
+const returnGame = document.getElementById('returnGame');
+
+function dbOpen() {
+  return new Promise((resolve,reject)=>{
+    const req = indexedDB.open('image-viewer-13',1);
+    req.onupgradeneeded = () => req.result.createObjectStore('files');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function loadSaved13() {
+  try {
+    const db = await dbOpen();
+    const data = await new Promise((resolve,reject)=>{
+      const tx=db.transaction('files','readonly');
+      const r=tx.objectStore('files').get('slide13');
+      r.onsuccess=()=>resolve(r.result||null);
+      r.onerror=()=>reject(r.error);
+    });
+    custom13 = data;
+  } catch(e) {}
+}
+async function save13(data) {
+  try {
+    const db = await dbOpen();
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction('files','readwrite');
+      tx.objectStore('files').put(data,'slide13');
+      tx.oncomplete=resolve;
+      tx.onerror=()=>reject(tx.error);
+    });
+  } catch(e) {
+    alert('ブラウザへの保存に失敗しました。今回の閲覧中は使用できます。');
+  }
+}
+
+function srcFor(n) {
+  if (n === 13) return custom13 || embedded["13"] || null;
+  return embedded[String(n)] || null;
+}
+const AUTO_PLAY_MS = 3000;
+let autoPlayTimer = null;
+let started = false;
+function updatePlaybackControls() {
+  const atEnd = current === 16;
+  document.getElementById('skip').classList.toggle('hidden', atEnd);
+  returnGame.classList.toggle('hidden', !atEnd);
+}
+function finish() {
+  const bgm = document.getElementById("bgm");
+  if (bgm) bgm.pause();
+  if (autoPlayTimer !== null) {
+    clearInterval(autoPlayTimer);
+    autoPlayTimer = null;
+  }
+  updatePlaybackControls();
+}
+function nextSlide() {
+  if (current >= 16) { finish(); return; }
+  current++;
+  render();
+}
+function render() {
+  updatePlaybackControls();
+  const src = srcFor(current);
+  if (src) {
+    img.src = src;
+    img.style.display = 'block';
+    placeholder.style.display = 'none';
+  } else {
+    img.removeAttribute('src');
+    img.style.display = 'none';
+    placeholder.style.display = 'block';
+  }
+  document.querySelectorAll('.thumb').forEach((b,i)=>b.classList.toggle('active',i+1===current));
+  const active = document.querySelector('.thumb.active');
+  if (active) active.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+}
+function go(n) {
+  current = Math.max(1,Math.min(16,n));
+  render();
+  if (current === 16) finish();
+}
+function buildThumbs() {
+  thumbs.innerHTML='';
+  for(let n=1;n<=16;n++) {
+    const b=document.createElement('button');
+    b.className='thumb'+(!srcFor(n)?' empty':'');
+    b.title = `ページ ${n}`;
+    b.onclick=()=>go(n);
+    const s=srcFor(n);
+    if(s) {
+      const t=document.createElement('img');
+      t.src=s;
+      t.alt=`${n}`;
+      b.appendChild(t);
+    } else {
+      b.textContent='未追加';
+    }
+    const label=document.createElement('span');
+    label.className='num';
+    label.textContent=n;
+    b.appendChild(label);
+    thumbs.appendChild(b);
+  }
+}
+function handleFile(file) {
+  if(!file || !file.type.startsWith('image/')) {
+    alert('画像ファイルを選択してください。');
+    return;
+  }
+  const r=new FileReader();
+  r.onload=async()=>{
+    custom13=r.result;
+    await save13(custom13);
+    buildThumbs();
+    go(13);
+  };
+  r.readAsDataURL(file);
+}
+document.getElementById('file13').addEventListener('change',e=>handleFile(e.target.files[0]));
+document.getElementById('prev').onclick=()=>go(current-1);
+document.getElementById('next').onclick=()=>go(current+1);
+document.getElementById('prev2').onclick=()=>go(current-1);
+document.getElementById('next2').onclick=()=>go(current+1);
+document.getElementById('first').onclick=()=>go(1);
+document.getElementById('last').onclick=()=>go(16);
+returnGame.onclick=()=>{const bgm=document.getElementById("bgm");if(bgm)bgm.pause();if(window.parent!==window){window.parent.postMessage({type:'story-scene-close'},'*');}else{history.back();}};
+document.getElementById('skip').onclick=()=>{const bgm=document.getElementById('bgm');if(bgm)bgm.pause();if(window.parent!==window){window.parent.postMessage({type:'story-scene-close'},'*');}else{go(16);finish();}};
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft') go(current-1);
+  else if(e.key==='ArrowRight' || e.key===' ') { e.preventDefault(); go(current+1); }
+  else if(e.key==='Home') go(1);
+  else if(e.key==='End') go(16);
+});
+
+let sx=0, sy=0;
+stage.addEventListener('touchstart',e=>{sx=e.changedTouches[0].screenX;sy=e.changedTouches[0].screenY;},{passive:true});
+stage.addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].screenX-sx;
+  const dy=e.changedTouches[0].screenY-sy;
+  if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)) go(current+(dx<0?1:-1));
+},{passive:true});
+
+stage.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('show');});
+stage.addEventListener('dragleave',e=>{drop.classList.remove('show');});
+stage.addEventListener('drop',e=>{
+  e.preventDefault(); drop.classList.remove('show');
+  if(current===13) handleFile(e.dataTransfer.files[0]);
+  else alert('13枚目のページを開いてから画像をドロップしてください。');
+});
+
+(async()=>{
+  await loadSaved13();
+  buildThumbs();
+  render();
+})();
+document.getElementById('startOpening').addEventListener('click',()=>{
+  if (started) return;
+  started = true;
+  const bgm = document.getElementById('bgm');
+  bgm.currentTime = 0;
+  bgm.play().catch(()=>{});
+  document.getElementById('startOverlay').remove();
+  render();
+  autoPlayTimer = setInterval(() => {
+    if (current >= 16) finish();
+    else nextSlide();
+  }, AUTO_PLAY_MS);
+});
+</script>
+</body>
+</html>
