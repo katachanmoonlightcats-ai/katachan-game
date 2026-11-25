@@ -3467,7 +3467,7 @@ function updateEnemies(dt){
       const poisonTick = Math.max(0, e.poisonDmg*dt);
       if(e.abyss)damageEnemy(e,poisonTick,null,true,null,true);else {e.hp -= poisonTick;addScore(poisonTick);}
     }
-    if(e.isSuperBoss){
+    if(e.isSuperBoss || e.abyss){
       if(bossArenaCenter){
         const bdx = e.x-bossArenaCenter.x, bdy = e.y-bossArenaCenter.y;
         const bd = Math.hypot(bdx,bdy);
@@ -3478,6 +3478,8 @@ function updateEnemies(dt){
           e.y = bossArenaCenter.y + Math.sin(bang)*bmax;
         }
       }
+    }
+    if(e.isSuperBoss){
       // 真ボス第1戦の2体には範囲攻撃（ノヴァ）を発生させない。
       if(!e.trueBossTeleportOnly && !e.trueBossFinalBulletHellOnly) e.novaTimer = (e.novaTimer||0) - dt*1000;
       if(!e.trueBossTeleportOnly && !e.trueBossFinalBulletHellOnly && e.novaTimer<=0){
@@ -4788,7 +4790,7 @@ function prepareAbyssPlayer(){
  player.maxHp=Math.max(500,player.maxHp);player.hp=player.maxHp;
 }
 function startAbyss(){
- abyssSaved={enemies,bossActive,bossArenaCenter,enemyBolts,projectiles,zones,meteors,track:currentTrack};startAbyssTrack();enemies=[];enemyBolts=[];projectiles=[];zones=[];meteors=[];bossArenaCenter=null;
+ abyssSaved={enemies,bossActive,bossArenaCenter,enemyBolts,projectiles,zones,meteors,track:currentTrack};startAbyssTrack();enemies=[];enemyBolts=[];projectiles=[];zones=[];meteors=[];bossArenaCenter={x:player.x,y:player.y};
  const diff=DIFFICULTIES[difficulty], hp=TRUE_BOSS_FINAL.hp*diff.hpMul, dmg=860/1.15*(1+collectedHeartCount*.001)*.5;
  const e={x:player.x+220,y:player.y,hp:hp*10,maxHp:hp*10,abyssBase:hp,abyss:true,abyssPhase:0,abyssGrace:1.2,abyssTimer:2,abyssPattern:0,isBoss:true,isSuperBoss:false,name:abyssNames[0],key:'abyss',r:60,speed:45,dmg,color:abyssColors[0],dead:false,flash:0,hitTimer:0,poisonT:0,chillT:0,xpVal:0};enemies.push(e);bossActive=e;showBossAnnounce(e.name,true);triggerScreenFlash(500);
 }
