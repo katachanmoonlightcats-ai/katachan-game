@@ -17,8 +17,10 @@
   #hp-fill{ background:linear-gradient(90deg,#ff4d4d,#ff9d9d); }
   #xp-fill{ background:linear-gradient(90deg,#4da6ff,#9ecfff); }
   #stats-row{ display:flex; justify-content:space-between; font-size:12px; text-shadow:1px 1px 3px #000; }
-  #score-hud{ position:fixed; bottom:8px; right:12px; top:auto; left:auto; z-index:31; color:#ffd700; font-size:18px; font-weight:bold; text-shadow:1px 1px 4px #000; background:rgba(0,0,0,0.55); border:1px solid rgba(255,215,0,0.45); border-radius:10px; padding:5px 10px; pointer-events:none; }
-  #achievement-panel{ position:fixed; bottom:52px; right:12px; top:auto; left:auto; z-index:31; color:#fff; font-size:11px; line-height:1.45; text-shadow:1px 1px 3px #000; background:rgba(0,0,0,0.48); border:1px solid rgba(255,255,255,0.2); border-radius:8px; padding:7px 9px; pointer-events:none; min-width:150px; }
+  #score-hud{ color:#ffd700; font-size:18px; font-weight:bold; padding:5px 10px; }
+  #achievement-panel{ color:#fff; font-size:12px; line-height:1.45; padding:7px 9px; }
+  #records-summary{ flex-shrink:0; margin:8px auto; max-width:100%; background:rgba(0,0,0,.48); border:1px solid rgba(255,215,0,.45); border-radius:10px; }
+  #difficulty-screen,#gameover-screen{overflow-y:auto;justify-content:safe center;}
   #weapon-row{ position:fixed; top:60px; left:12px; display:flex; gap:6px; z-index:10; pointer-events:none; }
   .w-icon{ width:34px; height:34px; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.4); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; color:#fff; position:relative; }
   .w-icon span{ position:absolute; bottom:-2px; right:0; font-size:9px; background:#333; border-radius:4px; padding:0 3px; }
@@ -116,7 +118,7 @@
 #debug-panel .dbg-warn{color:#ffd76a}
 /* ===== DEBUG MODE END ===== */
 
-</style>
+#collection-screen{z-index:100;overflow:auto;justify-content:flex-start} #collection-panel{width:min(800px,95%);overflow:auto} .album-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px}.album-grid>div{background:#302238;border-radius:8px;padding:8px;min-height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px}.album-grid img{width:80px;height:80px;object-fit:contain} #owned-weapons{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;max-height:22vh;overflow:auto;margin:8px}#owned-weapons span{background:#302238;padding:5px;border-radius:6px;font-size:12px} #levelup-screen{overflow:auto} </style>
 
 <style id="v70-hp-xp-player-style">
 /* v70: HP/EXPは主人公の直下へ移動。上部のHP/EXPバーは非表示。 */
@@ -133,15 +135,6 @@
  <div style="width:100%;height:17px;background:#454545;border:1px solid white;border-radius:6px;overflow:hidden"><div id="bullethell-hp-fill" style="width:100%;height:100%;background:#58dc83"></div></div>
 </div>
 
-<div id="score-hud">SCORE: <span id="score-val">0</span></div>
-<div id="achievement-panel">
-  <div style="font-weight:bold; color:#ffd700; margin-bottom:5px;">📊 記録・実績</div>
-  <div>⏱️ プレイ時間: <span id="stat-time">0</span>分</div>
-  <div>💥 累計ダメージ: <span id="stat-damage">0</span></div>
-  <div>🐾 累計雑魚敵討伐数: <span id="ach-minions">0</span> / 100,000</div>
-  <div>🐱 かたちゃん: <span id="ach-katachan">0</span> / 100</div>
-  <div>👑 王者かたちゃん: <span id="ach-king">0</span> / 10</div>
-</div>
 <div id="dmg-pop-layer"></div>
 
 <div id="hud" class="hidden">
@@ -193,10 +186,20 @@
   <h1>難易度選択</h1>
   <p class="sub">プレイする難易度を選んでください</p>
   <div class="card-row" id="difficulty-cards"></div>
-  <button class="link-btn" id="evo-tree-link-diff">🌳 進化ツリーを見る</button>
+  <div id="records-summary"><div id="score-hud"><span id="score-label">前回 SCORE:</span> <span id="score-val">0</span></div>
+<div id="achievement-panel">
+  <div style="font-weight:bold; color:#ffd700; margin-bottom:5px;">📊 記録・実績</div>
+  <div>⏱️ プレイ時間: <span id="stat-time">0</span>分</div>
+  <div>💥 累計ダメージ: <span id="stat-damage">0</span></div>
+  <div>🐾 累計雑魚敵討伐数: <span id="ach-minions">0</span> / 100,000</div>
+  <div>🐱 かたちゃん: <span id="ach-katachan">0</span> / 100</div>
+  <div>👑 王者かたちゃん: <span id="ach-king">0</span> / 10</div>
+</div>
+</div>
+  <button class="link-btn" id="collection-open">📖 図鑑・称号・永久強化</button><button class="link-btn" id="evo-tree-link-diff">🌳 進化ツリーを見る</button>
 </div>
 
-<div class="overlay hidden" id="character-screen">
+<div class="overlay hidden" id="collection-screen"><button class="link-btn" id="collection-close">閉じる</button><div id="collection-panel"></div></div><div class="overlay hidden" id="character-screen">
   <h1>ノーマルモード</h1>
   <p class="sub">主人公を選んでください</p>
   <div class="card-row" id="character-cards"></div>
@@ -213,7 +216,7 @@
 <div class="overlay hidden" id="levelup-screen">
   <h1>レベルアップ！</h1>
   <p class="sub">強化する内容を選んでください</p>
-  <div class="card-row" id="levelup-cards"></div>
+  <div>所持武器</div><div id="owned-weapons"></div><div class="card-row" id="levelup-cards"></div>
 </div>
 
 <div class="overlay hidden" id="gameover-screen">

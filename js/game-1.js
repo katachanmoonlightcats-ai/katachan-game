@@ -118,6 +118,7 @@ function drawFinalBossChains(ctx){
 // ---------- セーブデータ & 実績システム（新規ゲームは全実績0から開始） ----------
 const DEFAULT_SAVE = {
   totalPlayTime: 0,    // 累計プレイ時間（秒）
+  lastRunScore: 0,     // 前回ゲームオーバー時のスコア
   totalDamage: 0,      // 累計ダメージ（スコア）
   totalKills: 0,       // 累計討伐数（ボス含む）
   totalMinionKills: 0, // 雑魚敵の累計討伐数（ボスは含まない）
@@ -865,12 +866,59 @@ const BOSS_ABILITY_CONFIG = {
 };
 function angleDiff(a,b){ return Math.abs(((a-b+Math.PI)%(Math.PI*2))-Math.PI); }
 
+const collection = () => (saveData.collection ||= {});
+const titles = () => (saveData.titles ||= {});
+const titleDefs = [["start", "旅の始まり", "初プレイ", "hp", 1, 0], ["small", "小さな勇気", "累計雑魚100体", "atk", 1, 0], ["first", "はじめの一歩", "初ボス撃破", "hp", 2, 0], ["chest1", "宝物みつけた！", "宝箱1個", "xp", 1, 0], ["weapons", "武器コレクター", "武器5種類所持", "atk", 2, 0], ["runs5", "まだまだこれから", "累計5回プレイ", "hp", 2, 0], ["runs", "冒険の達人", "累計10回プレイ", "speed", 3, 1], ["album5", "みんなに会いたい", "図鑑5種類", "hp", 2, 0], ["chest10", "宝探し名人", "宝箱10個", "xp", 3, 1], ["lv20", "一人前の冒険者", "Lv.20到達", "atk", 3, 1], ["kills1k", "戦いの達人", "累計雑魚1000体", "atk", 3, 1], ["album10", "思い出の収集家", "図鑑10種類", "hp", 4, 1], ["maxweapon", "武器マスター", "武器1つ最大レベル", "atk", 4, 1], ["lv50", "熟練の冒険者", "Lv.50到達", "xp", 5, 2], ["final", "かたちゃんマスター", "ラスボス撃破", "atk", 5, 2], ["perfect", "完璧な守り", "通常ボス戦ノーダメージ", "def", 5, 2], ["chest50", "宝箱ハンター", "宝箱50個", "xp", 5, 2], ["special20", "必殺技の使い手", "必殺技20回", "atk", 5, 2], ["time30", "終わらない冒険", "30分生存", "hp", 5, 2], ["kills", "百戦錬磨", "累計雑魚10000体", "xp", 7, 2], ["costumes", "変身マスター", "全くまぬい・ガチャ衣装発見", "speed", 5, 2], ["lv100", "限界突破", "Lv.100到達", "xp", 8, 3], ["album", "思い出コレクター", "図鑑コンプリート", "hp", 10, 3], ["chest100", "宝箱の伝説", "宝箱100個", "xp", 8, 3], ["true", "奇跡を起こす者", "真ボス初撃破", "atk", 10, 3], ["both", "二人との思い出", "男女両モードでラスボス撃破", "hp", 8, 3], ["final10", "不屈の勇者", "ラスボス10回撃破", "def", 8, 3], ["true5", "奇跡のその先へ", "真ボス5回撃破", "atk", 15, 4], ["kills50k", "永遠の冒険者", "累計雑魚50000体", "hp", 12, 4], ["all", "伝説のコレクター", "他の全称号獲得", "all", 5, 4]];
+const ranks=['ブロンズ','シルバー','ゴールド','プラチナ','レジェンド'];
+const rankColors=['#b78053','#a5b4c5','#ffd66b','#69dce0','#d6a2ff'];
+const statNames={hp:'最大HP',atk:'攻撃力',def:'被ダメージ',speed:'移動速度',xp:'XP獲得量',all:'全主要能力'};
+function rewardText(d){return statNames[d[3]]+' '+(d[3]==='def'?'−':'+')+d[4]+'%';}
+function titleStats(){const a={hp:0,atk:0,def:0,speed:0,xp:0};for(const d of titleDefs)if(titles()[d[0]]){if(d[3]==='all')for(const k in a)a[k]+=d[4];else a[d[3]]+=d[4];}a.def=Math.min(40,a.def);return a;}
+const titleQueue=[];let titleShowing=false;
+function showTitleNotice(){if(titleShowing||!titleQueue.length)return;titleShowing=true;const d=titleQueue.shift();const el=document.createElement('div');el.setAttribute('role','status');el.style.cssText='position:fixed;top:12%;left:50%;transform:translateX(-50%);z-index:99999;pointer-events:none;background:#262039;color:white;border:2px solid '+rankColors[d[5]]+';border-radius:16px;padding:14px 24px;text-align:center;max-width:85vw;box-shadow:0 3px 12px #0006';for(const [v,c] of [['🏆 称号獲得！ '+ranks[d[5]],rankColors[d[5]]],[d[1],'white'],[d[2],'#eee'],['永久強化 '+rewardText(d)+'（次回から）','#9be9ac']]){const p=document.createElement('div');p.textContent=v;p.style.color=c;p.style.margin='4px';el.append(p);}document.body.append(el);setTimeout(()=>{el.remove();titleShowing=false;showTitleNotice();},2800);}
+function unlockTitle(id){if(titles()[id])return;const d=titleDefs.find(x=>x[0]===id);if(!d)return;titles()[id]=true;saveGame();titleQueue.push(d);showTitleNotice();if(id!=='all'&&titleDefs.every(x=>x[0]==='all'||titles()[x[0]]))unlockTitle('all');}
+function titleCounters(){return saveData.titleCounters ||= {};}
+function countTitle(k){const c=titleCounters();c[k]=(Number(c[k])||0)+1;saveGame();}
+function checkTitles(){const c=titleCounters(),runs=Number(saveData.playCount)||0,kills=Number(saveData.totalMinionKills)||0,boss=c.boss||0,chest=c.chest||0,final=c.final||0,truewins=c.truewins||0,special=c.special||0,album=albumEntries().filter(a=>collection()[a[0]]).length,level=player.level,weapons=player.weapons.length,maxweapon=player.weapons.some(w=>WEAPONS[w.id]&&w.level>=WEAPONS[w.id].maxLevel),time=elapsed,costumes=['katateddy','katagacha','suiteddy','suigacha'].every(k=>collection()[k]),both=c.girl&&c.boy;
+if(runs>=1)unlockTitle("start");
+if(kills>=100)unlockTitle("small");
+if(boss>=1)unlockTitle("first");
+if(chest>=1)unlockTitle("chest1");
+if(weapons>=5)unlockTitle("weapons");
+if(runs>=5)unlockTitle("runs5");
+if(runs>=10)unlockTitle("runs");
+if(album>=5)unlockTitle("album5");
+if(chest>=10)unlockTitle("chest10");
+if(level>=20)unlockTitle("lv20");
+if(kills>=1000)unlockTitle("kills1k");
+if(album>=10)unlockTitle("album10");
+if(maxweapon)unlockTitle("maxweapon");
+if(level>=50)unlockTitle("lv50");
+if(final>=1)unlockTitle("final");
+if(chest>=50)unlockTitle("chest50");
+if(special>=20)unlockTitle("special20");
+if(time>=1800)unlockTitle("time30");
+if(kills>=10000)unlockTitle("kills");
+if(costumes)unlockTitle("costumes");
+if(level>=100)unlockTitle("lv100");
+if(album===albumEntries().length)unlockTitle("album");
+if(chest>=100)unlockTitle("chest100");
+if(truewins>=1)unlockTitle("true");
+if(both)unlockTitle("both");
+if(final>=10)unlockTitle("final10");
+if(truewins>=5)unlockTitle("true5");
+if(kills>=50000)unlockTitle("kills50k");
+}
+
+function albumEntries(){return [...BOSS_TYPES.map(b=>[b.key,b.name,BOSS_SPRITES[b.key]]),['demonking','王者かたちゃん',BOSS_SPRITES.demonking],['phase2','王者かたちゃん【覚醒】',BOSS_PHASE2_SPRITE],['phase3','王者かたちゃん【真の姿】',BOSS_PHASE3_SPRITE],...['kata','sui'].flatMap(r=>{const n=r==='kata'?'かたちゃん':'すいちゃん';return [[r+'normal',n,TRUE_BOSS_ROLE_SPRITES[r].normal],[r+'hit',n+' 別の姿',TRUE_BOSS_ROLE_SPRITES[r].hit],[r+'teddy',n+' くまぬい衣装',TRUE_BOSS_TEDDY_SPRITES[r]],[r+'gacha',n+' ガチャ衣装',TRUE_BOSS_GACHA_SPRITES[r]]];}),['truefinal','真ボス最終形態',TRUE_BOSS_FINAL_SPRITE]];}
+function discover(id){if(collection()[id])return;collection()[id]=true;if(albumEntries().every(a=>collection()[a[0]]))unlockTitle('album');saveGame();}
+function showCollection(){const panel=document.getElementById('collection-panel');panel.replaceChildren();const entries=albumEntries();const head=document.createElement('h2');head.textContent='図鑑 '+entries.filter(a=>collection()[a[0]]).length+'/'+entries.length;panel.append(head);const grid=document.createElement('div');grid.className='album-grid';for(const [id,name,sprite] of entries){const tile=document.createElement('div');if(collection()[id]){const img=document.createElement('img');img.src=sprite.img.src;tile.append(img);tile.append(document.createTextNode(name));}else{tile.textContent='？？？';}grid.append(tile);}panel.append(grid);const th=document.createElement('h2');th.textContent='称号・永久強化 '+titleDefs.filter(d=>titles()[d[0]]).length+'/'+titleDefs.length;panel.append(th);const summary=document.createElement('p');summary.textContent='合計（次回開始時）：'+Object.entries(titleStats()).map(([k,v])=>statNames[k]+(k==='def'?' −':' +')+v+'%').join(' / ');panel.append(summary);for(const d of titleDefs){const [id,name,cond]=d;const line=document.createElement('p');line.style.cssText='border-left:4px solid '+rankColors[d[5]]+';padding:8px;text-align:left';line.textContent=(titles()[id]?'✓ 獲得済み ':'🔒 未獲得 ')+ranks[d[5]]+' ｜ '+name+' ｜ '+cond+' ｜ '+rewardText(d);panel.append(line);}document.getElementById('collection-screen').classList.remove('hidden');}
 function newPlayer(){
   return {
     x:0, y:0, hp:130, maxHp:130, speed:190, radius:16,
     level:1, xp:0, xpNext:7, regenTimer:0,
     weapons:[], // {id, level}
-    invTimer:0, hitFlash:0,
+    invTimer:0, hitFlash:0, damageEvents:0, chestAtk:0, chestSpeed:0, chestInv:0,
     pickupRadius:70,
     atkMul:1, defMul:1, cdMul:1, luck:0,
     // ステータスアップ取得回数（各ステータス最大5回）
@@ -887,6 +935,7 @@ function newPlayer(){
 function resetGame(){
   specialClearSequenceActive = false;
   player = newPlayer();
+  const t=titleStats(); player.maxHp=Math.round(player.maxHp*(1+t.hp/100));player.hp=player.maxHp;player.atkMul*=1+t.atk/100;player.defMul*=1-t.def/100;player.speed*=1+t.speed/100;player.titleXp=1+t.xp/100;
   if(typeof bossBindHud!=='undefined' && bossBindHud) bossBindHud.classList.add('hidden');
   enemies = []; projectiles = []; gems = []; hearts = []; particles = []; zones = []; powerups = []; enemyBolts = []; meteors = [];
   elapsed = 0; killCount = 0; spawnTimer = 0;
@@ -1391,7 +1440,7 @@ function showThankYouScene(){
 
 // ---------- Damage / death ----------
 function damageEnemy(e, dmg, poison, silent, chill, rawDmg, sourceId){
-  let actualDmg = rawDmg ? dmg : dmg * (player.atkMul||1);
+  let actualDmg = rawDmg ? dmg : dmg * (player.atkMul||1)*(player.chestAtk>0?1.3:1);
   if(e.isTrueBoss && e.trueBossDefenseDownT>0) actualDmg *= (e.trueBossDefenseMul||1);
   if(Number.isFinite(actualDmg) && actualDmg > 0) addScore(actualDmg);
   e.hp -= actualDmg;
@@ -1443,6 +1492,10 @@ function damageEnemy(e, dmg, poison, silent, chill, rawDmg, sourceId){
       return;
     }
     e.dead = true;
+    if(e.isBoss){countTitle('boss');unlockTitle('first');}
+    if(e.isTrueBossFinal){countTitle('truewins');unlockTitle('true');}
+    else if(e.isSuperBoss&&!e.isTrueBoss){countTitle('final');titleCounters()[selectedCharacter]=true;unlockTitle('final');}
+    else if(e.isBoss&&!e.isTrueBoss&&e.noHitStart===player.damageEvents)unlockTitle('perfect');
     if(e.isSuperBoss && !e.isTrueBoss){
       stopBossPhase1Track();
       stopBossPhase2Track();
@@ -1452,6 +1505,8 @@ function damageEnemy(e, dmg, poison, silent, chill, rawDmg, sourceId){
     if(!e.isBoss){
       saveData.totalMinionKills = Math.max(0, Number(saveData.totalMinionKills) || 0) + 1;
     }
+    if(saveData.totalMinionKills>=10000)unlockTitle('kills');
+    if(!e.isBoss&&Math.random()<.005)powerups.push({x:e.x,y:e.y,type:'chest'});
     saveData.achievements.octopus = saveData.totalKills;
     refreshTrueBossUnlock();
     saveGame();
@@ -1597,6 +1652,7 @@ function spawnBossActual(t){
     poisonT:0, poisonDmg:0, chillT:0, chillMul:1, key:t.key, angle:0,
     isBoss:true, name:t.name,
   };
+  boss.noHitStart=player.damageEvents||0;
   initBossAbilities(boss, t.abilities);
   enemies.push(boss);
   bossActive = boss;
@@ -1839,7 +1895,8 @@ function applyBossDamageToPlayer(e, base, mul=1, invMs=600, flashMs=260){
   const m = Number(mul);
   const def = Number(player.defMul);
   const damage = Math.max(0, Number.isFinite(raw) ? raw : 0) * (Number.isFinite(m) ? m : 1) * (Number.isFinite(def) ? def : 1);
-  if(player.invTimer>0 || damage<=0) return false;
+  if(player.invTimer>0 || player.chestInv>0 || damage<=0) return false;
+  player.damageEvents++;
   player.hp = Math.max(0, (Number.isFinite(Number(player.hp)) ? Number(player.hp) : player.maxHp) - damage);
   player.invTimer = invMs;
   player.hitFlash = flashMs;
@@ -2060,7 +2117,7 @@ function activateTrueBossSpecial(id){
   if((player.trueBossSpecials[id]||0) < 100) return;
   const targets = getTrueBossTargets();
   if(!targets.length) return;
-  player.trueBossSpecials[id] = 0;
+  player.trueBossSpecials[id] = 0;countTitle('special');checkTitles();
   if(player.trueBossSpecialReadyNotified) player.trueBossSpecialReadyNotified[id] = false;
 
   // 全必殺技は距離に関係なく生存中の真ボス全員が対象。
@@ -2352,13 +2409,21 @@ function applyCharacterEvolutionBonus(){
   spawnText(player.x, player.y - 46, '進化ボーナス！ HP+10 / 攻撃+5% / 移動速度+5', '#ff9ee6', 13);
 }
 
-function updateHud(){
-  scoreVal.textContent = Math.floor(Number(runScore)||0).toLocaleString('ja-JP');
+function showRecordsSummary(isResult){
+  const screen = document.getElementById(isResult ? 'gameover-screen' : 'difficulty-screen');
+  const panel = document.getElementById('records-summary');
+  const button = document.getElementById(isResult ? 'retry-btn' : 'evo-tree-link-diff');
+  screen.insertBefore(panel, button);
+  document.getElementById('score-label').textContent = isResult ? 'SCORE:' : '前回 SCORE:';
+  scoreVal.textContent = Math.floor(Number(isResult ? runScore : saveData.lastRunScore)||0).toLocaleString('ja-JP');
   statTime.textContent = Math.floor((Number(saveData.totalPlayTime)||0)/60);
   statDamage.textContent = Math.floor(Number(saveData.totalDamage)||0).toLocaleString('ja-JP');
   achKatachan.textContent = Math.floor(Number(saveData.achievements.katachan)||0).toLocaleString('ja-JP');
   if(achMinions) achMinions.textContent = Math.floor(Number(saveData.totalMinionKills)||0).toLocaleString('ja-JP');
   achKing.textContent = Math.floor(Number(saveData.achievements.kingKatachan)||0).toLocaleString('ja-JP');
+}
+
+function updateHud(){
   hpFill.style.width = clamp(player.hp/player.maxHp*100,0,100)+'%';
   xpFill.style.width = clamp(player.xp/player.xpNext*100,0,100)+'%';
   lvText.textContent = 'Lv.'+player.level;
@@ -2510,6 +2575,7 @@ function showLevelUp(){
 
   const options = buildLevelUpOptions();
   const screen = document.getElementById('levelup-screen');
+  const owned=document.getElementById('owned-weapons');owned.replaceChildren();for(const w of player.weapons){const d=weaponDisplay(w.id);const el=document.createElement('span');el.textContent=d.icon+' '+d.name+' '+(w.level===0?'進化済': 'Lv.'+w.level);owned.append(el);} 
   const row = document.getElementById('levelup-cards');
   row.innerHTML='';
 
@@ -2541,7 +2607,7 @@ function showLevelUp(){
       if(opt.type==='score'){
         addScore(opt.amount || 1000);
       } else {
-        applyOption(opt);
+        applyOption(opt);checkTitles();
       }
       screen.classList.add('hidden');
       if(pendingLevelUps > 0){
@@ -2606,6 +2672,7 @@ function showDifficultyScreen(){
     }
     row.appendChild(c);
   });
+  showRecordsSummary(false);
   screen.classList.remove('hidden');
 }
 
@@ -2656,11 +2723,13 @@ function showWeaponSelect(){
       // 念のため武器選択でもBGM再生を確実に開始
       startTrack('main');
       player.weapons.push({id, level:1, timer:300});
+      saveData.playCount=(Number(saveData.playCount)||0)+1;if(saveData.playCount>=10)unlockTitle('runs');saveGame();
       document.getElementById('start-screen').classList.add('hidden');
       hud.classList.remove('hidden');
       document.getElementById('evo-tree-btn').classList.remove('hidden');
       document.getElementById('title-btn').classList.remove('hidden');
       state='PLAYING';
+      checkTitles();
       lastFrame=performance.now();
       requestAnimationFrame(loop);
     };
@@ -2721,6 +2790,7 @@ function closeEvoTree(){
 document.getElementById('evo-tree-btn').onclick = openEvoTree;
 document.getElementById('evo-tree-close').onclick = closeEvoTree;
 document.getElementById('evo-tree-link-diff').onclick = openEvoTree;
+document.getElementById('collection-open').onclick=showCollection;document.getElementById('collection-close').onclick=()=>document.getElementById('collection-screen').classList.add('hidden');
 document.getElementById('evo-tree-link-start').onclick = openEvoTree;
 document.getElementById('evo-tree-link-go').onclick = openEvoTree;
 
@@ -2803,11 +2873,13 @@ function gameOver(){
     bossActive.bindState='idle';
     bossActive.frozen=false;
   }
+  saveData.lastRunScore = Math.floor(Number(runScore)||0);
   saveGame();
   state='GAMEOVER';
   const bossMulText = bossKillMultiplier>1.001 ? `　強化倍率 x${bossKillMultiplier.toFixed(2)}` : '';
   document.getElementById('go-stats').textContent =
     `難易度 ${DIFFICULTIES[difficulty].label}　Stage ${currentStage()}　レベル ${player.level}　討伐数 ${killCount}　生存時間 ${Math.floor(elapsed)}秒${bossMulText}`;
+  showRecordsSummary(true);
   document.getElementById('gameover-screen').classList.remove('hidden');
 }
 document.getElementById('retry-btn').onclick = showStart;
@@ -2826,8 +2898,8 @@ function updatePlayer(dt){
   const len = Math.hypot(vx,vy);
   if(len>0.05){
     vx/=Math.max(len,1); vy/=Math.max(len,1);
-    player.x += vx*player.speed*dt;
-    player.y += vy*player.speed*dt;
+    player.x += vx*player.speed*dt*(player.chestSpeed>0?1.2:1);
+    player.y += vy*player.speed*dt*(player.chestSpeed>0?1.2:1);
     facing.x = vx; facing.y = vy;
   }
   if(bossArenaCenter){
@@ -3127,7 +3199,7 @@ function updateBulletHell(dt){
   if(!bulletHell.spawnedItem&&bulletHell.elapsed>=cfg.itemDelay){bulletHell.spawnedItem=true;bulletHell.item={x:canvas.width/2,y:canvas.height/2,r:34,pulse:0};for(let i=0;i<18;i++)spawnSpark(canvas.width/2+camX,canvas.height/2+camY,'#ffe66d',5);}
   const lv=bulletHell.level||1,waveInterval=Math.max(1050,2100-(lv-1)*100);
   if(bulletHell.elapsed>=800&&bulletHell.elapsed-bulletHell.lastWaveT>=waveInterval&&!bulletHell.spawnedItem){bulletHell.lastWaveT=bulletHell.elapsed;spawnBulletHellWave();}
-  for(const b of bulletHell.bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt*1000;if(bulletHell.invT<=0&&dist(b.x,b.y,bulletHell.x,bulletHell.y)<b.r+12){player.hp-=Math.max(1,trueBossAttackDamage(enemies.find(e=>e.isTrueBossFinal&&!e.dead),(TRUE_BOSS_FINAL.dmg||120))*0.28)*(player.defMul||1);bulletHell.invT=520;player.hitFlash=180;addShake(3);}}
+  for(const b of bulletHell.bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt*1000;if(player.chestInv<=0&&bulletHell.invT<=0&&dist(b.x,b.y,bulletHell.x,bulletHell.y)<b.r+12){player.damageEvents++;player.hp-=Math.max(1,trueBossAttackDamage(enemies.find(e=>e.isTrueBossFinal&&!e.dead),(TRUE_BOSS_FINAL.dmg||120))*0.28)*(player.defMul||1);bulletHell.invT=520;player.hitFlash=180;addShake(3);}}
   bulletHell.bullets=bulletHell.bullets.filter(b=>b.life>0&&b.x>-60&&b.x<canvas.width+60&&b.y>-60&&b.y<canvas.height+60);
   if(bulletHell.item){bulletHell.item.pulse+=dt*7;if(dist(bulletHell.x,bulletHell.y,bulletHell.item.x,bulletHell.item.y)<bulletHell.item.r+18){exitBulletHell();return;}}
   if(bulletHell.elapsed>=cfg.duration&&!bulletHell.item){bulletHell.item={x:canvas.width/2,y:canvas.height/2,r:34,pulse:0};bulletHell.spawnedItem=true;for(let i=0;i<24;i++)spawnSpark(bulletHell.item.x,bulletHell.item.y,'#ffe66d',6);}
@@ -3565,6 +3637,7 @@ function updatePickups(dt){
       if(p.type==='magnet') collectAllGems();
       else if(p.type==='nuke') nukeAllEnemies();
       else if(p.type==='revive') gainRevive();
+      else if(p.type==='chest'){countTitle('chest');checkTitles();const n=Math.floor(Math.random()*5);const labels=['XP +500','HP 30%回復','攻撃力 +30% / 20秒','移動速度 +20% / 20秒','無敵 5秒'];if(n===0)gainXp(500);else if(n===1)player.hp=Math.min(player.maxHp,player.hp+player.maxHp*.3);else if(n===2)player.chestAtk=20;else if(n===3)player.chestSpeed=20;else player.chestInv=5;spawnText(player.x,player.y-35,labels[n],'#ffd700',16);}
       else if(p.type==='thankyou') showThankYouScene();
       return false;
     }
@@ -3598,7 +3671,7 @@ function gainRevive(){
 }
 
 function gainXp(v){
-  player.xp += v * (DIFFICULTIES[difficulty].xpMul||1);
+  player.xp += v * (DIFFICULTIES[difficulty].xpMul||1)*(player.titleXp||1);
   let gainedLevels = 0;
   while(player.xp >= player.xpNext){
     player.xp -= player.xpNext;
@@ -3616,6 +3689,7 @@ function gainXp(v){
   }
   // 一度の経験値獲得で複数レベル上がった場合も、各レベル分を1回ずつ選択させる。
   if(gainedLevels > 0){
+    checkTitles();
     pendingLevelUps += gainedLevels;
     if(state !== 'LEVELUP') showLevelUp();
   }
@@ -4164,7 +4238,7 @@ const pulse = 1 + Math.sin(performance.now() / 180) * 0.15;
         ctx.fillText('💝',x,y+7);
       }
     }else{
-      ctx.fillText(p.type==='nuke' ? '💥' : '🧲', x, y+7);
+      ctx.fillText(p.type==='chest'?'🎁':p.type==='nuke' ? '💥' : '🧲', x, y+7);
     }
     ctx.textAlign='left';
   });
@@ -4233,6 +4307,7 @@ const pulse = 1 + Math.sin(performance.now() / 180) * 0.15;
         ctx.restore();
       }
     }
+    if(e.isBoss){const id=e.isTrueBossFinal?'truefinal':e.isTrueBoss?(e.trueBossRole||'kata')+(e.trueBossGachaActive?'gacha':e.trueBossTeddyActive?'teddy':e.artState===1?'hit':'normal'):e.isSuperBoss&&e.phase>1?'phase'+e.phase:e.key;discover(id);}
     const bossSprite = e.isBoss ? BOSS_SPRITES[e.key] : null;
     const trueBossSprite = e.isTrueBoss ? TRUE_BOSS_SPRITE : null;
     const finalTrueBossSprite = e.isTrueBossFinal ? TRUE_BOSS_FINAL_SPRITE : null;
@@ -4364,6 +4439,7 @@ function loop(now){
   lastFrame = now;
   dt = Math.min(dt, 0.05); // clamp for tab-switch
   if(document.hidden){ requestAnimationFrame(loop); return; }
+  for(const k of ['chestAtk','chestSpeed','chestInv'])player[k]=Math.max(0,player[k]-dt);
 
   // 最終ラスボスの特殊攻撃中は通常ステージを一時停止し、弾幕回避ゲームを実行。
   if(bulletHell.active || bulletHell.warning){
@@ -4376,6 +4452,7 @@ function loop(now){
   }
 
   elapsed += dt;
+  if(Math.floor(elapsed)!==Math.floor(elapsed-dt))checkTitles();
   spawnTimer -= dt*1000;
   const stage = currentStage();
   const spawnFreqMul = 1 + (stage-1)*0.16*DIFFICULTIES[difficulty].scaleMul;
@@ -4457,7 +4534,7 @@ function loop(now){
 }
 
 // ===== DEBUG MODE START: このブロックを丸ごと削除すればデバッグ機能を完全撤去できます =====
-const DEBUG_MODE_ENABLED = true;
+const DEBUG_MODE_ENABLED = false;
 let debugInvincible = false;
 let debugPanelTimer = null;
 function debugReady(){ return DEBUG_MODE_ENABLED && typeof player!=='undefined' && player; }
