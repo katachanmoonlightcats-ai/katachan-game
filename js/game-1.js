@@ -1068,14 +1068,19 @@ function spawnTrail(x,y,color,size){
 
 // ---------- Firing logic ----------
 function fireWeapon(inst){
+  const stage=inst.myth?3:MYTH_NAMES[inst.id]?2:EVO_STATS[inst.id]?1:0;
   const starts=[particles.length,projectiles.length,zones.length];
   fireWeaponCore(inst);
   for(const [arr,start] of [[particles,starts[0]],[projectiles,starts[1]],[zones,starts[2]]]){
-    for(let i=start;i<arr.length;i++) {arr[i].fxRank=inst.myth?4:inst.rarity||0;if(inst.myth)arr[i].mythColor=MYTH_COLORS[inst.id];}
+    for(let i=start;i<arr.length;i++) {arr[i].fxStage=stage;arr[i].fxRank=inst.myth?4:inst.rarity||0;if(inst.myth)arr[i].mythColor=MYTH_COLORS[inst.id];}
   }
 }
 function fireWeaponCore(inst){
-  if(inst.myth && particles.length<400){const s=EVO_STATS[inst.id];particles.push({type:'mythAura',x:player.x,y:player.y,life:550,maxLife:550,maxR:Math.min(360,(s.radius||s.ringRange||s.range||160)*1.3),color:MYTH_COLORS[inst.id],tier:Math.min(4,[10,25,50,100].filter(n=>inst.level>=n).length),kind:inst.id});}
+  const stage=inst.myth?3:MYTH_NAMES[inst.id]?2:EVO_STATS[inst.id]?1:0;
+  if(stage && particles.length<360 && (!inst.lastEvolutionFx || performance.now()-inst.lastEvolutionFx> (stage===3?480:stage===2?520:420))){
+    inst.lastEvolutionFx=performance.now();const s=EVO_STATS[inst.id];const life=stage===3?1050:stage===2?650:400;
+    particles.push({type:'mythAura',x:player.x,y:player.y,life,maxLife:life,maxR:Math.min(stage===3?540:stage===2?300:180,Math.max(stage===3?360:stage===2?190:100,(s.radius||s.ringRange||s.range||140)*(stage===3?1.8:1.1))),color:MYTH_COLORS[inst.id]||'#a8dfff',tier:inst.myth?Math.min(4,[10,25,50,100].filter(n=>inst.level>=n).length):0,stage,kind:inst.id});
+  }
 
   const id = inst.id;
   if(EVO_STATS[id]){ fireEvolved(inst); return; }
@@ -4175,7 +4180,30 @@ function render(){
     const x=p.x-camX, y=p.y-camY;
     if(!['beam','daisukiCharge'].includes(p.type)&&!fxVisible(x,y,Math.max(280,p.maxR||0,p.r||0)))return;
     if(p.type==='mythAura'){
-      const r=p.maxR*(.35+.65*(1-a));ctx.save();ctx.translate(x,y);ctx.rotate((1-a)*1.4);ctx.globalAlpha=a*.75;ctx.strokeStyle=p.color;ctx.lineWidth=3;for(let j=0;j<3;j++){ctx.beginPath();ctx.arc(0,0,r*(.6+j*.2),0,Math.PI*2);ctx.stroke();}ctx.strokeStyle='#ffe4a0';ctx.lineWidth=2;const n=6+p.tier*2;for(let j=0;j<n;j++){const t=j*Math.PI*2/n;ctx.beginPath();ctx.moveTo(Math.cos(t)*r*.65,Math.sin(t)*r*.65);ctx.lineTo(Math.cos(t+.18)*r,Math.sin(t+.18)*r);ctx.lineTo(Math.cos(t+.36)*r*.65,Math.sin(t+.36)*r*.65);ctx.stroke();}ctx.restore();
+      const stage=p.stage||3, tier=p.tier||0, r=p.maxR*(.35+.65*(1-a));
+      ctx.save();ctx.translate(x,y);ctx.rotate((1-a)*(stage===3?2.4:1.2));
+      const n=stage===3?10+tier*2:stage===2?8:5;
+      for(let j=0;j<stage+1;j++)fxArc(0,0,r*(.48+j*.15),j%2?'#fff0bd':p.color,stage===3?3:2,a*.65, j*.6,j*.6+Math.PI*(stage===1?1.4:2));
+      ctx.strokeStyle=p.color;ctx.globalAlpha=a*.5;ctx.lineWidth=stage===3?3:1.5;ctx.beginPath();
+      for(let j=0;j<n;j++){const t=j*Math.PI*2/n;ctx.moveTo(Math.cos(t)*r*.55,Math.sin(t)*r*.55);ctx.lineTo(Math.cos(t+.12)*r,Math.sin(t+.12)*r);ctx.lineTo(Math.cos(t+.24)*r*.55,Math.sin(t+.24)*r*.55);}ctx.stroke();
+      if(stage>=2){ctx.globalAlpha=a*.85;ctx.fillStyle=stage===3?'#fff2b2':'#f0ddff';ctx.beginPath();for(let j=0;j<n;j++){const t=j*Math.PI*2/n;const xx=Math.cos(t)*r,yy=Math.sin(t)*r,k=stage===3?5+tier:3;ctx.moveTo(xx-k,yy);ctx.lineTo(xx,yy-k*1.7);ctx.lineTo(xx+k,yy);ctx.lineTo(xx,yy+k*1.7);ctx.closePath();}ctx.fill();}
+      if(stage===3){for(let j=0;j<3;j++)fxArc(0,0,r*(.85+j*.12),j===1?'#ffffff':p.color,4,a*.55,j*2,j*2+1.3);}
+      // Layered celestial burst, visual only; bounded geometry, no extra particles.
+      if(stage>=2){
+        const t=1-a, fade=Math.sin(Math.PI*t), R=r*(stage===3?1.28:1.08);
+        const g=ctx.createRadialGradient(0,0,0,0,0,R);
+        g.addColorStop(0,p.color);g.addColorStop(.35,p.color);g.addColorStop(1,'transparent');
+        ctx.globalAlpha=fade*(stage===3?.22:.13);ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,R,0,Math.PI*2);ctx.fill();
+        ctx.globalAlpha=1;
+        for(let k=0;k<(stage===3?5:2);k++)fxArc(0,0,R*(.48+k*.13),k%2?'#fff5cf':p.color,stage===3?6:3,fade*.7,t*3+k, t*3+k+Math.PI*1.35);
+        const rays=stage===3?16+tier*2:10;
+        ctx.rotate(-t*4);ctx.fillStyle=p.color;ctx.globalAlpha=fade*.55;ctx.beginPath();
+        for(let j=0;j<rays;j++){const q=j*Math.PI*2/rays;const inner=R*.22,outer=R*(j%2?.76:1.12);ctx.moveTo(Math.cos(q-.045)*inner,Math.sin(q-.045)*inner);ctx.lineTo(Math.cos(q)*outer,Math.sin(q)*outer);ctx.lineTo(Math.cos(q+.045)*inner,Math.sin(q+.045)*inner);ctx.closePath();}ctx.fill();
+        ctx.globalAlpha=fade*.9;ctx.strokeStyle='#fff4d5';ctx.lineWidth=2;ctx.beginPath();
+        for(let j=0;j<rays;j++){const q=j*Math.PI*2/rays;const xx=Math.cos(q)*R*.88,yy=Math.sin(q)*R*.88,k=stage===3?10:5;ctx.moveTo(xx-k,yy);ctx.lineTo(xx+k,yy);ctx.moveTo(xx,yy-k);ctx.lineTo(xx,yy+k);}ctx.stroke();
+        if(stage===3){ctx.globalAlpha=fade*.75;ctx.strokeStyle=p.color;ctx.lineWidth=4;ctx.beginPath();for(let j=0;j<8;j++){const q=j*Math.PI/4;for(let k=0;k<5;k++){const rr=R*(.15+k*.19),ang=q+Math.sin(k*2+j)*.13;const xx=Math.cos(ang)*rr,yy=Math.sin(ang)*rr;k?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);}}ctx.stroke();}
+      }
+      ctx.restore();
     } else if(p.type==='ring'){
       const r = p.maxR*(1-a);
       ctx.beginPath();
@@ -4196,9 +4224,10 @@ function render(){
       ctx.stroke();
       ctx.globalAlpha=1;
       const rr=p.r*(0.7+(1-a)*.5);
-      fxArc(0,0,rr,fxRankColor(p),8+(p.fxRank||0)*2,a*.35,-.72,.72);
+      fxArc(0,0,rr,fxRankColor(p),8+(p.fxRank||0)*2+(p.fxStage||0)*5,a*.35,-.72,.72);
       fxArc(0,0,rr,'#fffaf4',2,a*.9,-.65,.65);
       fxArc(0,0,rr*.82,p.color,2,a*.45,-.58,.58);
+      if(p.fxStage>=2){for(let j=0;j<(p.fxStage===3?4:2);j++)fxArc(0,0,rr*(1+j*.16),j%2?'#fff5cf':fxRankColor(p),p.fxStage===3?7:4,a*.65/(1+j*.35),-.9-j*.08,.9+j*.08);}
       ctx.restore();
     } else if(p.type==='trail'){
       ctx.beginPath(); ctx.fillStyle=p.color; ctx.globalAlpha = a*0.7;
@@ -4324,8 +4353,9 @@ const pulse = 1 + Math.sin(performance.now() / 180) * 0.15;
   projectiles.forEach(p=>{
     const x=p.x-camX, y=p.y-camY;
     if(!fxVisible(x,y,80))return;
-    const speed=Math.hypot(p.vx,p.vy)||1,tail=Math.min(42,12+speed*.045);
-    ctx.save();ctx.lineCap='round';ctx.strokeStyle=fxRankColor(p);ctx.globalAlpha=.38;ctx.lineWidth=p.r*1.5+(p.fxRank||0);ctx.beginPath();ctx.moveTo(x-p.vx/speed*tail,y-p.vy/speed*tail);ctx.lineTo(x,y);ctx.stroke();ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.globalAlpha=.8;ctx.stroke();ctx.restore();
+    const speed=Math.hypot(p.vx,p.vy)||1,tail=Math.min(p.fxStage===3?125:p.fxStage===2?85:55,12+speed*.045+(p.fxStage||0)*23);
+    ctx.save();ctx.lineCap='round';ctx.strokeStyle=fxRankColor(p);ctx.globalAlpha=.38;ctx.lineWidth=p.r*1.5+(p.fxRank||0)+(p.fxStage||0)*3;ctx.beginPath();ctx.moveTo(x-p.vx/speed*tail,y-p.vy/speed*tail);ctx.lineTo(x,y);ctx.stroke();ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.globalAlpha=.8;ctx.stroke();ctx.restore();
+    if(p.fxStage>=2)fxArc(x,y,p.r+8,fxRankColor(p),2,.55);
     if(p.fxRank>=2)fxArc(x,y,p.r+4,fxRankColor(p),p.fxRank>=4?3:1.5,.8);
     if(p.glow){
       const grad = ctx.createRadialGradient(x,y,0,x,y,p.r*3);
