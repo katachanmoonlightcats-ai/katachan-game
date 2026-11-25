@@ -525,7 +525,7 @@ if(trueBossBgm){ trueBossBgm.volume = 0.18; trueBossBgm.loop = true; }
 const bulletHellBgm = document.getElementById('bullethell-bgm');
 if(bulletHellBgm){ bulletHellBgm.volume = 0.20; bulletHellBgm.loop = true; }
 const abyssBgm = new Audio('assets/audio/abyss-theme.mp3');
-abyssBgm.loop=true; abyssBgm.volume=0.18;
+abyssBgm.loop=true; abyssBgm.volume=0.54;
 const trackAudio=()=>({'main':bgmAudio,'boss-phase1':bossPhase1Bgm,'boss-phase2':bossPhase2Bgm,'boss-phase3':bossPhase3Bgm,'trueboss':trueBossBgm,'bullethell':bulletHellBgm,'abyss':abyssBgm});
 function startAbyssTrack(){Object.values(trackAudio()).forEach(a=>a?.pause());currentTrack='abyss';abyssBgm.currentTime=0;if(musicEnabled)abyssBgm.play().catch(()=>{});}
 function restoreAbyssTrack(track){abyssBgm.pause();abyssBgm.currentTime=0;currentTrack=track||'main';const a=trackAudio()[currentTrack];if(a&&musicEnabled)a.play().catch(()=>{});}
@@ -4777,10 +4777,15 @@ function showAbyssQuiz(){
  state='ABYSS_QUIZ';Object.keys(keys).forEach(k=>keys[k]=false);
  const panel=document.createElement('div');panel.id='abyss-dialog';panel.style.cssText='position:fixed;inset:0;z-index:100000;background:#10091def;display:flex;align-items:center;justify-content:center;padding:20px;color:white';document.body.append(panel);
  const card=document.createElement('div');card.style.cssText='width:min(560px,95vw);max-height:90vh;overflow:auto;text-align:center;background:#25163a;border:2px solid #b68bea;border-radius:20px;padding:24px';panel.append(card);
- function close(win){panel.remove();Object.keys(keys).forEach(k=>keys[k]=false);if(win)startAbyss();state='PLAYING';lastFrame=performance.now();requestAnimationFrame(loop);}
+ function finish(win){panel.remove();Object.keys(keys).forEach(k=>keys[k]=false);if(win){prepareAbyssPlayer();startAbyss();updateHud();}state='PLAYING';lastFrame=performance.now();requestAnimationFrame(loop);}
+ function close(win){if(!win||player.weapons.some(w=>w.myth)){finish(win);return;}card.replaceChildren();const h=document.createElement('h2');h.textContent='神話の力を選べ';card.append(h);const info=document.createElement('p');info.textContent='神話武器を1つ選択して深淵に挑め';card.append(info);for(const [id,name] of Object.entries(MYTH_NAMES)){const b=document.createElement('button');b.textContent='👑 '+name+' ｜ Lv.1';b.style.cssText='display:block;width:100%;margin:8px 0;padding:12px;border-radius:10px;background:#493264;color:white;border:1px solid #a987d1;font-size:16px';b.onclick=()=>{if(!panel.isConnected)return;let w=findWeapon(id);if(w){w.myth=true;w.level=1;}else{w={id,level:1,timer:300,rarity:0,myth:true};player.weapons.push(w);}player.mythFocus=id;mythRecord(w);finish(true);};card.append(b);}}
  function message(text,win){card.replaceChildren();const h=document.createElement('h2');h.textContent=text;card.append(h);const b=document.createElement('button');b.textContent='進む';b.onclick=()=>close(win);card.append(b);}
  function ask(q,opts,answer,next,shuffle=true){card.replaceChildren();const h=document.createElement('h2');h.textContent=q;card.append(h);const a=[...opts];if(shuffle)for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}for(const v of a){const b=document.createElement('button');b.textContent=v;b.style.cssText='display:block;width:100%;margin:8px 0;padding:12px;border-radius:10px;background:#493264;color:white;border:1px solid #a987d1;font-size:16px';b.onclick=()=>v===answer?next():message(q.startsWith('深淵')?'謎の卵は静かに消えていった……':'お前には資格がないようだ',false);card.append(b);}}
  ask('深淵の扉を開く勇気はあるか？',['はい','いいえ'],'はい',()=>ask('かたちゃんの身長をこたえよ',['142センチ','145センチ','147センチ','150センチ'],'147センチ',()=>ask('かたちゃんの好きなバンドは',['スピッツ','BUMP OF CHICKEN','サザンオールスターズ','たま','Mr.Children','SEKAI NO OWARI','ポルノグラフィティ','RADWIMPS'],'たま',()=>message('深淵の扉が開かれた',true))),false);
+}
+function prepareAbyssPlayer(){
+ for(const type of ['hp','speed','atk','def','atkspeed','pickup','luck']){const missing=Math.max(0,5-(player.statUpgradeCounts?.[type]||0));for(let i=0;i<missing;i++)applyOption({type});}
+ player.maxHp=Math.max(500,player.maxHp);player.hp=player.maxHp;
 }
 function startAbyss(){
  abyssSaved={enemies,bossActive,bossArenaCenter,enemyBolts,projectiles,zones,meteors,track:currentTrack};startAbyssTrack();enemies=[];enemyBolts=[];projectiles=[];zones=[];meteors=[];bossArenaCenter=null;
