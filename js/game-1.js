@@ -754,6 +754,10 @@ const EVOLUTIONS = [
   { mats:['toxicblade','demolition'], result:'apocalypse', name:'破滅の猛毒兵器', icon:'☣️', desc:'猛毒弾幕+大爆発反撃', tier2:true },
   { mats:['thunderzone','abysschain'], result:'voidstorm', name:'虚空の雷嵐', icon:'🌌', desc:'吸引の渦+連続雷撃', tier2:true },
 ];
+const MYTH_NAMES={heavenharvest:'星天の大祝祭',judgmentgravity:'終焉の特異点',godslayer:'創世の神剣',galearcher:'天翔の星弓',frozencomet:'永久凍星',apocalypse:'終焉の毒華',voidstorm:'天界の雷神'};
+const MYTH_COLORS={heavenharvest:'#ff9edb',judgmentgravity:'#ad77ff',godslayer:'#ffe080',galearcher:'#a8eaff',frozencomet:'#8edfff',apocalypse:'#9aff86',voidstorm:'#c8a0ff'};
+function mythMultiplier(w){return w.myth?4*(1+(w.level-1)*.1):[1,1,1.2,1.4,1.7,2][w.level]||1;}
+function mythRecord(w){const records=saveData.mythRecords ||= {};records[w.id]=Math.max(records[w.id]||0,w.level);unlockTitle('myth1');for(const n of [10,25,50,100])if(w.level>=n)unlockTitle('myth'+n);if(w.rarity===4)unlockTitle('mythlegend');if(Object.keys(MYTH_NAMES).every(id=>records[id]))unlockTitle('mythall');saveGame();}
 const EVO_STATS = {
   excalibur: {dmg:110, cd:600, range:160},
   stormwhip: {dmg:52, cd:750, range:170},
@@ -870,6 +874,7 @@ function angleDiff(a,b){ return Math.abs(((a-b+Math.PI)%(Math.PI*2))-Math.PI); }
 const collection = () => (saveData.collection ||= {});
 const titles = () => (saveData.titles ||= {});
 const titleDefs = [["start", "旅の始まり", "初プレイ", "hp", 1, 0], ["small", "小さな勇気", "累計雑魚100体", "atk", 1, 0], ["first", "はじめの一歩", "初ボス撃破", "hp", 2, 0], ["chest1", "宝物みつけた！", "宝箱1個", "xp", 1, 0], ["weapons", "武器コレクター", "武器5種類所持", "atk", 2, 0], ["runs5", "まだまだこれから", "累計5回プレイ", "hp", 2, 0], ["runs", "冒険の達人", "累計10回プレイ", "speed", 3, 1], ["album5", "みんなに会いたい", "図鑑5種類", "hp", 2, 0], ["chest10", "宝探し名人", "宝箱10個", "xp", 3, 1], ["lv20", "一人前の冒険者", "Lv.20到達", "atk", 3, 1], ["kills1k", "戦いの達人", "累計雑魚1000体", "atk", 3, 1], ["album10", "思い出の収集家", "図鑑10種類", "hp", 4, 1], ["maxweapon", "武器マスター", "武器1つ最大レベル", "atk", 4, 1], ["lv50", "熟練の冒険者", "Lv.50到達", "xp", 5, 2], ["final", "かたちゃんマスター", "ラスボス撃破", "atk", 5, 2], ["perfect", "完璧な守り", "通常ボス戦ノーダメージ", "def", 5, 2], ["chest50", "宝箱ハンター", "宝箱50個", "xp", 5, 2], ["special20", "必殺技の使い手", "必殺技20回", "atk", 5, 2], ["time30", "終わらない冒険", "30分生存", "hp", 5, 2], ["kills", "百戦錬磨", "累計雑魚10000体", "xp", 7, 2], ["costumes", "変身マスター", "全くまぬい・ガチャ衣装発見", "speed", 5, 2], ["lv100", "限界突破", "Lv.100到達", "xp", 8, 3], ["album", "思い出コレクター", "図鑑コンプリート", "hp", 10, 3], ["chest100", "宝箱の伝説", "宝箱100個", "xp", 8, 3], ["true", "奇跡を起こす者", "真ボス初撃破", "atk", 10, 3], ["both", "二人との思い出", "男女両モードでラスボス撃破", "hp", 8, 3], ["final10", "不屈の勇者", "ラスボス10回撃破", "def", 8, 3], ["true5", "奇跡のその先へ", "真ボス5回撃破", "atk", 15, 4], ["kills50k", "永遠の冒険者", "累計雑魚50000体", "hp", 12, 4], ["all", "伝説のコレクター", "他の全称号獲得", "all", 5, 4]];
+titleDefs.push(['myth1','神話の始まり','神話武器初獲得','atk',1,2],...[[10,'神話の使い手'],[25,'神話を超える者'],[50,'神域の到達者'],[100,'終わりなき成長']].map(([n,name])=>['myth'+n,name,'神話武器Lv.'+n,'atk',1,3]),['mythlegend','選ばれし者','レジェンド神話武器獲得','atk',1,4],['mythall','七つの神話','全7種類の神話武器獲得','atk',1,4]);
 const ranks=['ブロンズ','シルバー','ゴールド','プラチナ','レジェンド'];
 const rankColors=['#b78053','#a5b4c5','#ffd66b','#69dce0','#d6a2ff'];
 const statNames={hp:'最大HP',atk:'攻撃力',def:'被ダメージ',speed:'移動速度',xp:'XP獲得量',all:'全主要能力'};
@@ -1004,8 +1009,8 @@ function findWeapon(id){ return player.weapons.find(w=>w.id===id); }
 const weaponRanks=[['ノーマル','#aaaaaa',1,50],['アンコモン','#35a567',1.1,28],['レア','#488be0',1.25,15],['エピック','#a56ce0',1.5,6],['レジェンド','#d9a126',2,1]];
 function rollWeaponRank(){let r=Math.random()*100;for(let i=0;i<weaponRanks.length;i++){r-=weaponRanks[i][3];if(r<0)return i;}return 4;}
 function rankOf(w){return weaponRanks[w?.rarity||0];}
-function rankedStats(s,w){if(!s)return s;const m=rankOf(w)[2];if(m===1)return s;const out={...s};for(const k of ['dmg','mgDmg','ringDmg','zoneDmg','retDmg','poison','heal','xp'])if(typeof out[k]==='number')out[k]=Math.round(out[k]*m*100)/100;return out;}
-function acquireWeapon(id,timer){const w={id,level:1,timer,rarity:rollWeaponRank()};player.weapons.push(w);if(w.rarity>=2){const r=rankOf(w);titleQueue.push({notice:true,color:r[1],heading:'💎 武器獲得！ '+r[0],name:weaponDisplay(id).name,detail:'武器効果 ×'+r[2]});showTitleNotice();}return w;}
+function rankedStats(s,w){if(!s)return s;const m=rankOf(w)[2]*(w&&MYTH_NAMES[w.id]?mythMultiplier(w):1);if(m===1)return s;const out={...s};for(const k of ['dmg','mgDmg','ringDmg','zoneDmg','retDmg','poison','heal','xp'])if(typeof out[k]==='number')out[k]=Math.round(out[k]*m*100)/100;if(w?.myth){for(const k of ['range','radius','ringRange','zoneRadius','retRadius','width'])if(out[k]&&out[k]<99999)out[k]*=1.3;for(const k of ['count','boltCount'])if(out[k])out[k]+=3;}return out;}
+function acquireWeapon(id,timer,rarity=rollWeaponRank()){const w={id,level:1,timer,rarity};player.weapons.push(w);if(w.rarity>=2){const r=rankOf(w);titleQueue.push({notice:true,color:r[1],heading:'💎 武器獲得！ '+r[0],name:weaponDisplay(id).name,detail:'武器効果 ×'+r[2]});showTitleNotice();}return w;}
 function weaponStats(id,level){return rankedStats(baseWeaponStats(id,level),findWeapon(id));}
 function baseWeaponStats(id, level){
   switch(id){
@@ -1063,6 +1068,15 @@ function spawnTrail(x,y,color,size){
 
 // ---------- Firing logic ----------
 function fireWeapon(inst){
+  const starts=[particles.length,projectiles.length,zones.length];
+  fireWeaponCore(inst);
+  for(const [arr,start] of [[particles,starts[0]],[projectiles,starts[1]],[zones,starts[2]]]){
+    for(let i=start;i<arr.length;i++) {arr[i].fxRank=inst.myth?4:inst.rarity||0;if(inst.myth)arr[i].mythColor=MYTH_COLORS[inst.id];}
+  }
+}
+function fireWeaponCore(inst){
+  if(inst.myth && particles.length<400){const s=EVO_STATS[inst.id];particles.push({type:'mythAura',x:player.x,y:player.y,life:550,maxLife:550,maxR:Math.min(360,(s.radius||s.ringRange||s.range||160)*1.3),color:MYTH_COLORS[inst.id],tier:Math.min(4,[10,25,50,100].filter(n=>inst.level>=n).length),kind:inst.id});}
+
   const id = inst.id;
   if(EVO_STATS[id]){ fireEvolved(inst); return; }
   const s = weaponStats(id, inst.level);
@@ -1334,9 +1348,9 @@ function fireEvolved(inst){
       meteors.push({x:tx,y:ty,radius:s.radius,dmg:s.dmg,timer:420,maxTimer:420});
     }
     player.hp = Math.min(player.maxHp, player.hp+s.heal);
-    const xpGain = Math.max(2, (s.xp + inst.level));
+    const xpGain = Math.max(2, Math.floor(s.xp + Math.min(inst.level,100)));
     gainXp(xpGain);
-    const pickupRadius = 220 + inst.level * 65;
+    const pickupRadius = 220 + Math.min(inst.level,10) * 65;
     gems.forEach(g=>{
       if(dist(g.x,g.y,player.x,player.y) <= pickupRadius){
         gainXp(Math.max(1, Number(g.val)||1));
@@ -1346,7 +1360,7 @@ function fireEvolved(inst){
     gems = gems.filter(g=>!g.collected);
     spawnRing(player.x,player.y,'rgba(255,225,120,0.5)',pickupRadius,420);
     spawnRing(player.x,player.y,'rgba(255,220,240,0.55)',s.heal*4,360);
-    spawnText(player.x,player.y-42,'天穹の収穫祭 +'+xpGain+'XP','#ffe68a',15);
+    spawnText(player.x,player.y-42,(inst.myth?MYTH_NAMES[inst.id]:'天穹の収穫祭')+' +'+xpGain+'XP','#ffe68a',15);
   } else if(inst.id==='judgmentgravity'){
     // 断罪のワルツ＋グラビティボム：弾幕＋広範囲重力爆発
     enemies.forEach(e=>{ if(dist(e.x,e.y,player.x,player.y)<s.radius) damageEnemy(e,s.dmg); });
@@ -2497,7 +2511,7 @@ function buildLevelUpOptions(){
   // acquire new (bonus last-boss weapon can still push beyond this cap directly)
   if(player.weapons.length < weaponSlotLimit()){
     Object.keys(WEAPONS).forEach(id=>{
-      if(!EVOLUTION_ONLY_IDS.has(id) && !findWeapon(id) && !player.retiredWeaponIds?.has(id)) options.push({type:'new', id, name:WEAPONS[id].name, icon:WEAPONS[id].icon, desc:WEAPONS[id].desc+' ｜取得時レアリティ抽選'});
+      if(!EVOLUTION_ONLY_IDS.has(id) && !findWeapon(id) && !player.retiredWeaponIds?.has(id)) options.push({type:'new', id, name:WEAPONS[id].name, icon:WEAPONS[id].icon, desc:WEAPONS[id].desc});
     });
   }
   // evolutions (tier1: base+base, tier2: evolved+evolved)
@@ -2533,29 +2547,55 @@ function buildLevelUpOptions(){
   const shuffledEvolves = evolveOptions.slice();
   for(let i=shuffledEvolves.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [shuffledEvolves[i],shuffledEvolves[j]]=[shuffledEvolves[j],shuffledEvolves[i]]; }
   let result = shuffledEvolves.slice(0,3);
+  const eligible=player.weapons.filter(w=>MYTH_NAMES[w.id]&&(!player.mythFocus||player.mythFocus===w.id));
+  if(eligible.length && Math.random()<(eligible.some(w=>w.myth)?.3:.5)){
+    const w=pick(eligible), lv=w.level||1;
+    result=result.slice(0,2);result.push({type:'mythUpgrade',id:w.id,name:w.myth?MYTH_NAMES[w.id]:weaponDisplay(w.id).name,icon:w.myth?'👑':weaponDisplay(w.id).icon,desc:w.myth?'神話 Lv.'+lv+' → '+(lv+1):lv===4?'Lv.5到達 → 神話進化':'覚醒 Lv.'+lv+' → '+(lv+1),rarity:w.rarity||0,evo:true});
+  }
   if(result.length<3){
     const others = options.filter(o=>o.type!=='evolve');
     for(let i=others.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [others[i],others[j]]=[others[j],others[i]]; }
     result = result.concat(others.slice(0, 3-result.length));
   }
+  for(const opt of result){
+    if(opt.type==='new') opt.rarity=rollWeaponRank();
+    else if(opt.type==='upgrade') opt.rarity=findWeapon(opt.id)?.rarity||0;
+    else if(opt.type==='evolve') opt.rarity=Math.max(0,...opt.mats.map(id=>findWeapon(id)?.rarity||0));
+  }
   return result;
 }
 
+function showChoiceRank(card,rarity){
+  if(rarity===undefined)return;
+  const r=weaponRanks[rarity];
+  const label=document.createElement('div');
+  label.textContent=r[0]+' ×'+r[2];
+  label.style.cssText='font-size:13px;font-weight:bold;margin:4px 0;padding:3px 6px;border:1px solid;border-radius:6px;background:#171323;';
+  label.style.color=r[1];
+  card.style.borderColor=r[1];
+  card.querySelector('.name').after(label);
+}
+
 function applyOption(opt){
-  if(opt.type==='upgrade'){
+  if(opt.type==='mythUpgrade'){
+    const w=findWeapon(opt.id);if(!w||!MYTH_NAMES[w.id]||(player.mythFocus&&player.mythFocus!==w.id))return;
+    player.mythFocus=w.id;w.level=(w.level||1)+1;
+    if(!w.myth&&w.level>=5){w.myth=true;w.level=1;titleQueue.push({notice:true,color:'#ffd66b',heading:'👑 神話進化！',name:MYTH_NAMES[w.id],detail:'無限成長解放！'});showTitleNotice();}
+    if(w.myth)mythRecord(w);
+  } else if(opt.type==='upgrade'){
     // 念のためUI側で除外されても、グラビティボムはレベルアップさせない。
     if(EVOLUTION_ONLY_IDS.has(opt.id)) return;
     const w = findWeapon(opt.id);
     if(w) w.level++;
   }
-  else if(opt.type==='new'){ acquireWeapon(opt.id,400); }
+  else if(opt.type==='new'){ acquireWeapon(opt.id,400,opt.rarity); }
   else if(opt.type==='evolve'){
     // 進化で消費したMAX武器は、このプレイ中は新規武器候補へ戻さない。
     if(!player.retiredWeaponIds) player.retiredWeaponIds = new Set();
     opt.mats.forEach(id=>player.retiredWeaponIds.add(id));
     const rarity=Math.max(0,...player.weapons.filter(w=>opt.mats.includes(w.id)).map(w=>w.rarity||0));
     player.weapons = player.weapons.filter(w=>!opt.mats.includes(w.id));
-    player.weapons.push({id:opt.id, level:0, timer:300,rarity});
+    player.weapons.push({id:opt.id, level:MYTH_NAMES[opt.id]?1:0, timer:300,rarity});
   }
   else if(['hp','speed','atk','def','atkspeed','pickup','luck'].includes(opt.type)){
     const counts = player.statUpgradeCounts || (player.statUpgradeCounts={hp:0,speed:0,atk:0,def:0,atkspeed:0,pickup:0,luck:0});
@@ -2578,7 +2618,7 @@ function showLevelUp(){
 
   const options = buildLevelUpOptions();
   const screen = document.getElementById('levelup-screen');
-  const owned=document.getElementById('owned-weapons');owned.replaceChildren();for(const w of player.weapons){const d=weaponDisplay(w.id);const el=document.createElement('span');el.textContent=d.icon+' '+d.name+' '+(w.level===0?'進化済': 'Lv.'+w.level);const r=rankOf(w);el.textContent+=' ｜'+r[0]+' ×'+r[2];el.style.color=r[1];el.style.borderColor=r[1];owned.append(el);} 
+  const owned=document.getElementById('owned-weapons');owned.replaceChildren();for(const w of player.weapons){const d=weaponDisplay(w.id);if(w.myth){d.name=MYTH_NAMES[w.id];d.icon="👑";}const el=document.createElement('span');el.textContent=d.icon+' '+d.name+' '+(w.level===0?'進化済': 'Lv.'+w.level);const r=rankOf(w);el.textContent+=' ｜'+r[0]+' ×'+r[2];el.style.color=r[1];el.style.borderColor=r[1];owned.append(el);} 
   const row = document.getElementById('levelup-cards');
   row.innerHTML='';
 
@@ -2606,7 +2646,10 @@ function showLevelUp(){
     const c = document.createElement('div');
     c.className='card'+(opt.evo?' evo':'');
     c.innerHTML = `<div class="icon">${opt.icon}</div><div class="name">${opt.name}</div><div class="desc">${opt.desc}</div>`;
+    showChoiceRank(c,opt.rarity);
+    if(opt.type==='mythUpgrade'){c.style.borderColor='#ffd66b';c.style.boxShadow='0 0 12px #ffd66b66';}
     c.onclick = ()=>{
+      if(opt.type==='mythUpgrade'&&!player.mythFocus&&!confirm('この覚醒武器を育成対象にしますか？ このプレイ中は変更できません。'))return;
       if(opt.type==='score'){
         addScore(opt.amount || 1000);
       } else {
@@ -2722,10 +2765,12 @@ function showWeaponSelect(){
     const c = document.createElement('div');
     c.className='card';
     c.innerHTML = `<div class="icon">${def.icon}</div><div class="name">${def.name}</div><div class="desc">${def.desc}</div>`;
+    const rarity=rollWeaponRank();
+    showChoiceRank(c,rarity);
     c.onclick = ()=>{
       // 念のため武器選択でもBGM再生を確実に開始
       startTrack('main');
-      acquireWeapon(id,300);
+      acquireWeapon(id,300,rarity);
       saveData.playCount=(Number(saveData.playCount)||0)+1;if(saveData.playCount>=10)unlockTitle('runs');saveGame();
       document.getElementById('start-screen').classList.add('hidden');
       hud.classList.remove('hidden');
@@ -2773,6 +2818,9 @@ function renderEvoTree(){
   t2.textContent = '◆ 覚醒進化（進化武器同士でさらに融合）';
   content.appendChild(t2);
   EVOLUTIONS.filter(e=>e.tier2).forEach(buildRow);
+  const t3=document.createElement('div');t3.className='evo-section-title';t3.textContent='◆ 神話進化（覚醒Lv.5・1プレイ1個）';content.append(t3);
+  for(const [id,name] of Object.entries(MYTH_NAMES)){const row=document.createElement('div');row.className='evo-row';row.textContent=weaponDisplay(id).name+' → 👑 '+name+' ｜ 最高 Lv.'+(saveData.mythRecords?.[id]||0);content.append(row);}
+
 }
 function openEvoTree(){
   stateBeforeEvoTree = state;
@@ -3560,7 +3608,8 @@ function updateProjectiles(dt){
     }
     p.x += p.vx*dt; p.y += p.vy*dt;
     p.life -= dt*1000;
-    if(Math.random()<0.7) spawnTrail(p.x - p.vx*0.01, p.y - p.vy*0.01, p.poison?'#7bff6a':p.color, p.r*0.6);
+    p.fxTrail=(p.fxTrail||0)+dt;
+    if(p.fxTrail>=0.055 && particles.length<420){p.fxTrail=0;spawnTrail(p.x-p.vx*.018,p.y-p.vy*.018,p.fxRank?weaponRanks[p.fxRank][1]:p.color,p.r*.6);}
     p._hit = p._hit || new Set();
     if(!p.isBomb && !p.isHolyWater && !p.isBlackHole){
       enemies.forEach(e=>{
@@ -3713,6 +3762,7 @@ function updateParticles(dt){
     }
   });
   particles = particles.filter(p=> p.life>0);
+  if(particles.length>520){let excess=particles.length-520;particles=particles.filter(p=>!(excess>0&&['bit','spark','trail'].includes(p.type)&&excess--));}
   if(shakeMag>0.05){ shakeMag *= Math.max(0, 1 - 10*dt); } else { shakeMag = 0; }
   if(screenFlashTimer>0) screenFlashTimer -= dt*1000;
 }
@@ -4026,6 +4076,9 @@ function drawSpecialWeaponCompanions(){
 }
 // ===== END SPECIAL WEAPON COMPANION EFFECTS =====
 
+function fxVisible(x,y,r=60){return x+r>=0&&y+r>=0&&x-r<=canvas.width&&y-r<=canvas.height;}
+function fxRankColor(p){return p.mythColor|| (p.fxRank?weaponRanks[p.fxRank][1]:p.color);}
+function fxArc(x,y,r,color,width,alpha,start=0,end=Math.PI*2){ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=width;ctx.globalAlpha=alpha;ctx.arc(x,y,Math.max(1,r),start,end);ctx.stroke();ctx.globalAlpha=1;}
 function render(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   camX = player.x - canvas.width/2;
@@ -4084,6 +4137,7 @@ function render(){
   const zonePulse = 1+Math.sin(performance.now()/150)*0.05;
   zones.forEach(z=>{
     const x=z.x-camX, y=z.y-camY;
+    if(!fxVisible(x,y,z.radius+20))return;
     if(z.isVortex){
       const spin = performance.now()/300;
       ctx.save(); ctx.translate(x,y); ctx.rotate(spin);
@@ -4097,6 +4151,9 @@ function render(){
     } else {
       ctx.beginPath(); ctx.fillStyle=z.color; ctx.arc(x,y,z.radius*zonePulse,0,Math.PI*2); ctx.fill();
       ctx.beginPath(); ctx.strokeStyle='rgba(255,255,255,0.35)'; ctx.lineWidth=2; ctx.arc(x,y,z.radius*zonePulse,0,Math.PI*2); ctx.stroke();
+      const spin=performance.now()/900;
+      fxArc(x,y,z.radius*.86, z.fxRank?weaponRanks[z.fxRank][1]:'#e4d9ff',2,.65,spin,spin+4.7);
+      ctx.save();ctx.translate(x,y);ctx.rotate(-spin);ctx.strokeStyle=z.fxRank?weaponRanks[z.fxRank][1]:'#e4d9ff';ctx.globalAlpha=.35;ctx.lineWidth=1.5;ctx.beginPath();for(let j=0;j<6;j++){const a=j*Math.PI/3;const xx=Math.cos(a)*z.radius*.72,yy=Math.sin(a)*z.radius*.72;j?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);}ctx.closePath();ctx.stroke();ctx.restore();
       if(z.isTotem){ ctx.font='22px sans-serif'; ctx.textAlign='center'; ctx.fillText(z.slow?'🧊':'🗿', x, y+8); ctx.textAlign='left'; }
     }
   });
@@ -4116,13 +4173,18 @@ function render(){
   particles.forEach(p=>{
     const a = clamp(p.life/p.maxLife,0,1);
     const x=p.x-camX, y=p.y-camY;
-    if(p.type==='ring'){
+    if(!['beam','daisukiCharge'].includes(p.type)&&!fxVisible(x,y,Math.max(280,p.maxR||0,p.r||0)))return;
+    if(p.type==='mythAura'){
+      const r=p.maxR*(.35+.65*(1-a));ctx.save();ctx.translate(x,y);ctx.rotate((1-a)*1.4);ctx.globalAlpha=a*.75;ctx.strokeStyle=p.color;ctx.lineWidth=3;for(let j=0;j<3;j++){ctx.beginPath();ctx.arc(0,0,r*(.6+j*.2),0,Math.PI*2);ctx.stroke();}ctx.strokeStyle='#ffe4a0';ctx.lineWidth=2;const n=6+p.tier*2;for(let j=0;j<n;j++){const t=j*Math.PI*2/n;ctx.beginPath();ctx.moveTo(Math.cos(t)*r*.65,Math.sin(t)*r*.65);ctx.lineTo(Math.cos(t+.18)*r,Math.sin(t+.18)*r);ctx.lineTo(Math.cos(t+.36)*r*.65,Math.sin(t+.36)*r*.65);ctx.stroke();}ctx.restore();
+    } else if(p.type==='ring'){
       const r = p.maxR*(1-a);
       ctx.beginPath();
       ctx.strokeStyle = p.color; ctx.lineWidth = 3+a*3;
       ctx.globalAlpha = a*0.85;
       ctx.arc(x,y,Math.max(1,r),0,Math.PI*2); ctx.stroke();
       ctx.globalAlpha=1;
+      fxArc(x,y,r*.82,fxRankColor(p),2,a*.65);
+      fxArc(x,y,r,'#fff8ee',1.5,a*.8);
     } else if(p.type==='slash'){
       ctx.save();
       ctx.translate(x,y); ctx.rotate(p.angle||0);
@@ -4133,12 +4195,16 @@ function render(){
       ctx.arc(0,0,p.r*(0.7+ (1-a)*0.5), -0.65, 0.65);
       ctx.stroke();
       ctx.globalAlpha=1;
+      const rr=p.r*(0.7+(1-a)*.5);
+      fxArc(0,0,rr,fxRankColor(p),8+(p.fxRank||0)*2,a*.35,-.72,.72);
+      fxArc(0,0,rr,'#fffaf4',2,a*.9,-.65,.65);
+      fxArc(0,0,rr*.82,p.color,2,a*.45,-.58,.58);
       ctx.restore();
     } else if(p.type==='trail'){
       ctx.beginPath(); ctx.fillStyle=p.color; ctx.globalAlpha = a*0.7;
       ctx.arc(x,y,p.size*a,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
     } else if(p.type==='bolt'){
-      ctx.strokeStyle=p.color; ctx.lineWidth=3; ctx.globalAlpha=a;
+      ctx.strokeStyle=fxRankColor(p); ctx.lineWidth=8; ctx.globalAlpha=a*.55;
       ctx.beginPath();
       const sy = y-260;
       ctx.moveTo(x,sy);
@@ -4147,7 +4213,9 @@ function render(){
         const t=i/segs;
         ctx.lineTo(x+(Math.random()-0.5)*18*(1-t), sy+(y-sy)*t);
       }
-      ctx.stroke();
+      ctx.stroke();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.globalAlpha=a;ctx.stroke();
+      fxArc(x,y,24*(1-a)+8,fxRankColor(p),2,a);
+      ctx.beginPath();ctx.moveTo(x,y-130);ctx.lineTo(x+28,y-88);ctx.lineTo(x+12,y-65);ctx.strokeStyle=p.color;ctx.stroke();
       ctx.beginPath(); ctx.fillStyle=p.color; ctx.globalAlpha=a*0.6; ctx.arc(x,y,18,0,Math.PI*2); ctx.fill();
       ctx.globalAlpha=1;
     } else if(p.type==='daisukiCharge'){
@@ -4168,6 +4236,8 @@ function render(){
     } else if(p.type==='beam'){
       const bx1=p.x1-camX, by1=p.y1-camY, bx2=p.x2-camX, by2=p.y2-camY;
       ctx.strokeStyle=p.color; ctx.lineCap='round'; ctx.globalAlpha=a;
+      ctx.lineWidth = 34*a+6;
+      ctx.globalAlpha=a*.25;ctx.beginPath();ctx.moveTo(bx1,by1);ctx.lineTo(bx2,by2);ctx.stroke();ctx.globalAlpha=a;
       ctx.lineWidth = 22*a+4;
       ctx.beginPath(); ctx.moveTo(bx1,by1); ctx.lineTo(bx2,by2); ctx.stroke();
       ctx.strokeStyle='#ffffff'; ctx.lineWidth = 8*a+2;
@@ -4253,6 +4323,10 @@ const pulse = 1 + Math.sin(performance.now() / 180) * 0.15;
   // projectiles (glow + spin for thrown weapons)
   projectiles.forEach(p=>{
     const x=p.x-camX, y=p.y-camY;
+    if(!fxVisible(x,y,80))return;
+    const speed=Math.hypot(p.vx,p.vy)||1,tail=Math.min(42,12+speed*.045);
+    ctx.save();ctx.lineCap='round';ctx.strokeStyle=fxRankColor(p);ctx.globalAlpha=.38;ctx.lineWidth=p.r*1.5+(p.fxRank||0);ctx.beginPath();ctx.moveTo(x-p.vx/speed*tail,y-p.vy/speed*tail);ctx.lineTo(x,y);ctx.stroke();ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.globalAlpha=.8;ctx.stroke();ctx.restore();
+    if(p.fxRank>=2)fxArc(x,y,p.r+4,fxRankColor(p),p.fxRank>=4?3:1.5,.8);
     if(p.glow){
       const grad = ctx.createRadialGradient(x,y,0,x,y,p.r*3);
       grad.addColorStop(0, p.color); grad.addColorStop(1,'rgba(0,0,0,0)');
@@ -4356,6 +4430,7 @@ const pulse = 1 + Math.sin(performance.now() / 180) * 0.15;
   particles.forEach(p=>{
     const a = clamp(p.life/p.maxLife,0,1);
     const x=p.x-camX, y=p.y-camY;
+    if(!fxVisible(x,y,60))return;
     if(p.type==='spark'){
       ctx.strokeStyle=p.color; ctx.lineWidth=2; ctx.globalAlpha=a;
       ctx.beginPath();
@@ -4541,7 +4616,7 @@ function loop(now){
 }
 
 // ===== DEBUG MODE START: このブロックを丸ごと削除すればデバッグ機能を完全撤去できます =====
-const DEBUG_MODE_ENABLED = false;
+const DEBUG_MODE_ENABLED = true;
 let debugInvincible = false;
 let debugPanelTimer = null;
 function debugReady(){ return DEBUG_MODE_ENABLED && typeof player!=='undefined' && player; }
