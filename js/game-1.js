@@ -837,6 +837,7 @@ let bossCount = 0;
 let collectedHeartCount = 0;
 let finalBossHeartCount = 0;
 let finalBossHeartMultiplier = 1;
+let finalBossHeartAttackMultiplier = 1;
 let nextBossTime = 60;
 let bossArenaCenter = null;
 const BOSS_ARENA_RADIUS = 1280;
@@ -875,7 +876,7 @@ const statNames={hp:'最大HP',atk:'攻撃力',def:'被ダメージ',speed:'移�
 function rewardText(d){return statNames[d[3]]+' '+(d[3]==='def'?'−':'+')+d[4]+'%';}
 function titleStats(){const a={hp:0,atk:0,def:0,speed:0,xp:0};for(const d of titleDefs)if(titles()[d[0]]){if(d[3]==='all')for(const k in a)a[k]+=d[4];else a[d[3]]+=d[4];}a.def=Math.min(40,a.def);return a;}
 const titleQueue=[];let titleShowing=false;
-function showTitleNotice(){if(titleShowing||!titleQueue.length)return;titleShowing=true;const d=titleQueue.shift();const el=document.createElement('div');el.setAttribute('role','status');el.style.cssText='position:fixed;top:12%;left:50%;transform:translateX(-50%);z-index:99999;pointer-events:none;background:#262039;color:white;border:2px solid '+rankColors[d[5]]+';border-radius:16px;padding:14px 24px;text-align:center;max-width:85vw;box-shadow:0 3px 12px #0006';for(const [v,c] of [['🏆 称号獲得！ '+ranks[d[5]],rankColors[d[5]]],[d[1],'white'],[d[2],'#eee'],['永久強化 '+rewardText(d)+'（次回から）','#9be9ac']]){const p=document.createElement('div');p.textContent=v;p.style.color=c;p.style.margin='4px';el.append(p);}document.body.append(el);setTimeout(()=>{el.remove();titleShowing=false;showTitleNotice();},2800);}
+function showTitleNotice(){if(titleShowing||!titleQueue.length)return;titleShowing=true;const d=titleQueue.shift();const el=document.createElement('div');el.setAttribute('role','status');el.style.cssText='position:fixed;top:12%;left:50%;transform:translateX(-50%);z-index:99999;pointer-events:none;background:#262039;color:white;border:2px solid '+(d.notice?d.color:rankColors[d[5]])+';border-radius:16px;padding:14px 24px;text-align:center;max-width:85vw;box-shadow:0 3px 12px #0006';if(d.images){const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;justify-content:center;gap:12px';d.images.forEach((src,i)=>{if(i)row.append('→');const img=document.createElement('img');img.src=src;img.style.cssText='width:82px;height:82px;object-fit:contain';row.append(img);});el.append(row);}for(const [v,c] of (d.notice?[[d.heading,d.color],[d.name,'white'],[d.detail,'#9be9ac']]:[['🏆 称号獲得！ '+ranks[d[5]],rankColors[d[5]]],[d[1],'white'],[d[2],'#eee'],['永久強化 '+rewardText(d)+'（次回から）','#9be9ac']])){const p=document.createElement('div');p.textContent=v;p.style.color=c;p.style.margin='4px';el.append(p);}document.body.append(el);setTimeout(()=>{el.remove();titleShowing=false;showTitleNotice();},2800);}
 function unlockTitle(id){if(titles()[id])return;const d=titleDefs.find(x=>x[0]===id);if(!d)return;titles()[id]=true;saveGame();titleQueue.push(d);showTitleNotice();if(id!=='all'&&titleDefs.every(x=>x[0]==='all'||titles()[x[0]]))unlockTitle('all');}
 function titleCounters(){return saveData.titleCounters ||= {};}
 function countTitle(k){const c=titleCounters();c[k]=(Number(c[k])||0)+1;saveGame();}
@@ -956,6 +957,7 @@ function resetGame(){
   collectedHeartCount = 0;
   finalBossHeartCount = 0;
   finalBossHeartMultiplier = 1;
+  finalBossHeartAttackMultiplier = 1;
   player.trueBossSpecials = {teddy:0,tower:0,bouquet:0,ticket:0};
   player.trueBossSpecialActive = false;
 
@@ -999,7 +1001,13 @@ function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
 function findWeapon(id){ return player.weapons.find(w=>w.id===id); }
 
 // ---------- Weapon stats ----------
-function weaponStats(id, level){
+const weaponRanks=[['ノーマル','#aaaaaa',1,50],['アンコモン','#35a567',1.1,28],['レア','#488be0',1.25,15],['エピック','#a56ce0',1.5,6],['レジェンド','#d9a126',2,1]];
+function rollWeaponRank(){let r=Math.random()*100;for(let i=0;i<weaponRanks.length;i++){r-=weaponRanks[i][3];if(r<0)return i;}return 4;}
+function rankOf(w){return weaponRanks[w?.rarity||0];}
+function rankedStats(s,w){if(!s)return s;const m=rankOf(w)[2];if(m===1)return s;const out={...s};for(const k of ['dmg','mgDmg','ringDmg','zoneDmg','retDmg','poison','heal','xp'])if(typeof out[k]==='number')out[k]=Math.round(out[k]*m*100)/100;return out;}
+function acquireWeapon(id,timer){const w={id,level:1,timer,rarity:rollWeaponRank()};player.weapons.push(w);if(w.rarity>=2){const r=rankOf(w);titleQueue.push({notice:true,color:r[1],heading:'💎 武器獲得！ '+r[0],name:weaponDisplay(id).name,detail:'武器効果 ×'+r[2]});showTitleNotice();}return w;}
+function weaponStats(id,level){return rankedStats(baseWeaponStats(id,level),findWeapon(id));}
+function baseWeaponStats(id, level){
   switch(id){
     case 'sword': return { dmg:8+level*5, cd:950-level*70, range:95, hits:1+Math.floor(level/2) };
     case 'whip':  return { dmg:6+level*4, cd:1150-level*90, w:150+level*14, h:60 };
@@ -1204,7 +1212,7 @@ function thrustHit(px,py,ang,range,width){
 }
 
 function fireEvolved(inst){
-  const s = EVO_STATS[inst.id];
+  const s = rankedStats(EVO_STATS[inst.id],inst);
   if(inst.id==='excalibur'){
     enemies.forEach(e=>{ if(dist(e.x,e.y,player.x,player.y)<s.range) damageEnemy(e,s.dmg); });
     spawnRing(player.x,player.y,'rgba(255,215,0,0.6)', s.range, 260);
@@ -1303,7 +1311,7 @@ function fireEvolved(inst){
     spawnText(player.x,player.y-30,'+'+s.heal,'#ffd6f0',14);
   } else if(inst.id==='harvesthedgehog'){
     // それいけきゅーまる：時間経過で経験値を生み、レベルに応じて広い範囲から経験値を回収
-    const xpGain = Math.max(1, Math.floor(s.xp + inst.level));
+    const xpGain = Math.max(1, (s.xp + inst.level));
     gainXp(xpGain);
     const pickupRadius = 120 + inst.level * 55;
     let collected = 0;
@@ -1326,7 +1334,7 @@ function fireEvolved(inst){
       meteors.push({x:tx,y:ty,radius:s.radius,dmg:s.dmg,timer:420,maxTimer:420});
     }
     player.hp = Math.min(player.maxHp, player.hp+s.heal);
-    const xpGain = Math.max(2, Math.floor(s.xp + inst.level));
+    const xpGain = Math.max(2, (s.xp + inst.level));
     gainXp(xpGain);
     const pickupRadius = 220 + inst.level * 65;
     gems.forEach(g=>{
@@ -1750,11 +1758,12 @@ function spawnSuperBossActual(){
   const ang = rand(0,Math.PI*2);
   const dist0 = Math.max(canvas.width,canvas.height)/2 + 220;
   // ラスボス出現時点で、それまでに実際に拾ったハート数を確定。
-  // ハート1個につきラスボスのHP・攻撃力を5%ずつ上昇させる。
+  // ハート1個につきHPを2%、攻撃力を0.1%加算する。
   finalBossHeartCount = collectedHeartCount;
-  finalBossHeartMultiplier = 1 + finalBossHeartCount * 0.001;
+  finalBossHeartMultiplier = 1 + finalBossHeartCount * 0.02;
+  finalBossHeartAttackMultiplier = 1 + finalBossHeartCount * 0.001;
   const baseHp = t.hp*diff.hpMul*bossKillMultiplier*finalBossHeartMultiplier;
-  const baseDmg = t.dmg*diff.dmgMul*bossKillMultiplier*finalBossHeartMultiplier;
+  const baseDmg = t.dmg*diff.dmgMul*bossKillMultiplier*finalBossHeartAttackMultiplier;
   const boss = {
     x: player.x+Math.cos(ang)*dist0, y: player.y+Math.sin(ang)*dist0,
     hp: baseHp, maxHp:baseHp, speed:t.speed, dmg:baseDmg,
@@ -1762,7 +1771,7 @@ function spawnSuperBossActual(){
     poisonT:0, poisonDmg:0, chillT:0, chillMul:1, key:t.key, angle:0,
     isBoss:true, isSuperBoss:true, name:t.name, novaTimer:2500,
     phase:1, phaseBaseHp:baseHp, phaseBaseDmg:baseDmg,
-    heartStrengthMul:finalBossHeartMultiplier,
+    heartStrengthMul:finalBossHeartAttackMultiplier,
   };
   initBossAbilities(boss, t.abilities);
   enemies.push(boss);
@@ -1785,10 +1794,11 @@ function spawnTrueBossActual(){
   const t = TRUE_BOSS;
   const centerX = player.x, centerY = player.y;
   finalBossHeartCount = collectedHeartCount;
-  finalBossHeartMultiplier = 1 + finalBossHeartCount * 0.001;
+  finalBossHeartMultiplier = 1 + finalBossHeartCount * 0.02;
+  finalBossHeartAttackMultiplier = 1 + finalBossHeartCount * 0.001;
   // 真ボスは「かたちゃん」と「すいちゃん」の2体同時。形態進化はしない。
   const eachHp = (t.hp * 0.62) * diff.hpMul * bossKillMultiplier * finalBossHeartMultiplier;
-  const eachDmg = t.dmg * diff.dmgMul * bossKillMultiplier * finalBossHeartMultiplier;
+  const eachDmg = t.dmg * diff.dmgMul * bossKillMultiplier * finalBossHeartAttackMultiplier;
   const roles = [
     {role:'kata', name:'かたちゃん'},
     {role:'sui', name:'すいちゃん'}
@@ -1852,9 +1862,10 @@ function spawnTrueBossFinalActual(){
   const diff = DIFFICULTIES[difficulty];
   const t = TRUE_BOSS_FINAL;
   finalBossHeartCount = collectedHeartCount;
-  finalBossHeartMultiplier = 1 + finalBossHeartCount * 0.001;
+  finalBossHeartMultiplier = 1 + finalBossHeartCount * 0.02;
+  finalBossHeartAttackMultiplier = 1 + finalBossHeartCount * 0.001;
   const hp = t.hp * diff.hpMul * bossKillMultiplier * finalBossHeartMultiplier;
-  const dmg = t.dmg * diff.dmgMul * bossKillMultiplier * finalBossHeartMultiplier;
+  const dmg = t.dmg * diff.dmgMul * bossKillMultiplier * finalBossHeartAttackMultiplier;
   const ang = rand(0, Math.PI*2);
   const dist0 = Math.max(canvas.width, canvas.height)/2 + 260;
   const boss = {
@@ -1866,7 +1877,7 @@ function spawnTrueBossFinalActual(){
     // 通常攻撃・ノヴァ・突進・魔法・ブレス・瞬間移動・拘束は使用しない。
     trueBossFinalBulletHellOnly:true,
     name:t.name, baseName:t.name, novaTimer:Infinity, novaInterval:Infinity,
-    novaRadius:t.novaRadius, novaDmg:t.novaDmg, phase:3, heartStrengthMul:finalBossHeartMultiplier,
+    novaRadius:t.novaRadius, novaDmg:t.novaDmg, phase:3, heartStrengthMul:finalBossHeartAttackMultiplier,
     trueBossTeddyActive:false,
     trueBossGachaActive:false,
     trueBossAttackDownT:0, trueBossAttackMul:1, trueBossDefenseDownT:0, trueBossDefenseMul:1
@@ -2364,7 +2375,7 @@ canvas.addEventListener('pointercancel', ()=>{ bulletHell.pointerActive=false; }
 
 function showBossAnnounce(name, isSuper){
   if(isSuper){
-    bossAnnounceBox.textContent = '☠️☠️ 災厄降臨：'+name+' ☠️☠️\n❤️ 回復アイテム獲得数：'+finalBossHeartCount+'個\nラスボス強化倍率：×'+finalBossHeartMultiplier.toFixed(3);
+    bossAnnounceBox.textContent = '☠️☠️ 災厄降臨：'+name+' ☠️☠️\n❤️ 回復アイテム獲得数：'+finalBossHeartCount+'個\nHP倍率：×'+finalBossHeartMultiplier.toFixed(3)+'　攻撃×'+finalBossHeartAttackMultiplier.toFixed(3);
   } else {
     bossAnnounceBox.textContent = '⚠ ボス出現：'+name+' ⚠';
   }
@@ -2382,19 +2393,10 @@ function showBossAnnounce(name, isSuper){
 // キャラクター進化専用テロップ。ボス登場テロップとは別処理にして、
 // キャラクター進化時に誤って「ボス出現」が表示されないようにする。
 function showCharacterEvolutionAnnounce(){
-  bossAnnounceBox.textContent = '✨ キャラクター進化！ ✨';
-  bossAnnounceBox.style.color = '#ffffff';
-  bossAnnounceBox.style.borderColor = '#ff69b4';
-  bossAnnounceBox.style.background = 'rgba(90,20,90,0.82)';
-  bossAnnounce.classList.remove('hidden');
-  bossAnnounce.style.opacity = '1';
-  if(bossAnnounceTimer1) clearTimeout(bossAnnounceTimer1);
-  if(bossAnnounceTimer2) clearTimeout(bossAnnounceTimer2);
-  bossAnnounceTimer1 = setTimeout(()=>{ bossAnnounce.style.opacity='0'; }, 1800);
-  bossAnnounceTimer2 = setTimeout(()=>{
-    bossAnnounce.classList.add('hidden');
-    bossAnnounceBox.style.background = 'rgba(120,0,0,0.8)';
-  }, 2200);
+ const ch=CHARACTERS[selectedCharacter]||CHARACTERS.girl;
+ const tier=Math.floor((player.level-1)/10);
+ if(tier<1||tier>=ch.defs.length)return;
+ titleQueue.push({notice:true,color:'#ffd98b',heading:'✨ キャラクター進化！',name:ch.label+' 第'+(tier+1)+'形態 / Lv.'+player.level,detail:'HP +10 / 攻撃 +5% / 移動速度 +5 / 防御・攻撃速度強化',images:[ch.defs[tier-1].b64,ch.defs[tier].b64]});showTitleNotice();
 }
 
 // 見た目のキャラクター進化と同時に、能力値も少しだけ強化する。
@@ -2446,10 +2448,10 @@ function updateHud(){
       const alive = trueBossPair.filter(b=>b && !b.dead && b.hp>0);
       const avg = alive.length ? alive.reduce((sum,b)=>sum + clamp(b.hp/b.maxHp,0,1),0)/alive.length : 0;
       bossHpFill.style.width = (avg*100)+'%';
-      bossNameEl.textContent = 'かたちゃん＆すいちゃん　'+alive.map(b=>b.name+' '+Math.max(0,Math.ceil(b.hp))+'/'+Math.ceil(b.maxHp)).join('　｜　')+'　❤️'+finalBossHeartCount+'　強化×'+finalBossHeartMultiplier.toFixed(3);
+      bossNameEl.textContent = 'かたちゃん＆すいちゃん　'+alive.map(b=>b.name+' '+Math.max(0,Math.ceil(b.hp))+'/'+Math.ceil(b.maxHp)).join('　｜　')+'　❤️'+finalBossHeartCount+'　HP×'+finalBossHeartMultiplier.toFixed(3)+'　攻撃×'+finalBossHeartAttackMultiplier.toFixed(3);
     } else if(bossActive.isSuperBoss){
       bossHpFill.style.width = clamp(bossActive.hp/bossActive.maxHp*100,0,100)+'%';
-      bossNameEl.textContent = bossActive.name+'  '+Math.max(0,Math.ceil(bossActive.hp))+'/'+Math.ceil(bossActive.maxHp)+'　❤️'+finalBossHeartCount+'　強化×'+finalBossHeartMultiplier.toFixed(3);
+      bossNameEl.textContent = bossActive.name+'  '+Math.max(0,Math.ceil(bossActive.hp))+'/'+Math.ceil(bossActive.maxHp)+'　❤️'+finalBossHeartCount+'　HP×'+finalBossHeartMultiplier.toFixed(3)+'　攻撃×'+finalBossHeartAttackMultiplier.toFixed(3);
     } else {
       bossHpFill.style.width = clamp(bossActive.hp/bossActive.maxHp*100,0,100)+'%';
       bossNameEl.textContent = bossActive.name+'  '+Math.max(0,Math.ceil(bossActive.hp))+'/'+Math.ceil(bossActive.maxHp);
@@ -2489,13 +2491,13 @@ function buildLevelUpOptions(){
     // グラビティボムは進化でのみ獲得する武器。レベルアップ候補には出さない。
     if(EVOLUTION_ONLY_IDS.has(w.id)) return;
     if(def && w.level < def.maxLevel){
-      options.push({type:'upgrade', id:w.id, name:def.name, icon:def.icon, desc:'Lv.'+w.level+' → '+(w.level+1)});
+      options.push({type:'upgrade', id:w.id, name:def.name, icon:def.icon, desc:'Lv.'+w.level+' → '+(w.level+1)+' ｜ '+rankOf(w)[0]+' ×'+rankOf(w)[2]});
     }
   });
   // acquire new (bonus last-boss weapon can still push beyond this cap directly)
   if(player.weapons.length < weaponSlotLimit()){
     Object.keys(WEAPONS).forEach(id=>{
-      if(!EVOLUTION_ONLY_IDS.has(id) && !findWeapon(id) && !player.retiredWeaponIds?.has(id)) options.push({type:'new', id, name:WEAPONS[id].name, icon:WEAPONS[id].icon, desc:WEAPONS[id].desc});
+      if(!EVOLUTION_ONLY_IDS.has(id) && !findWeapon(id) && !player.retiredWeaponIds?.has(id)) options.push({type:'new', id, name:WEAPONS[id].name, icon:WEAPONS[id].icon, desc:WEAPONS[id].desc+' ｜取得時レアリティ抽選'});
     });
   }
   // evolutions (tier1: base+base, tier2: evolved+evolved)
@@ -2546,13 +2548,14 @@ function applyOption(opt){
     const w = findWeapon(opt.id);
     if(w) w.level++;
   }
-  else if(opt.type==='new'){ player.weapons.push({id:opt.id, level:1, timer:400}); }
+  else if(opt.type==='new'){ acquireWeapon(opt.id,400); }
   else if(opt.type==='evolve'){
     // 進化で消費したMAX武器は、このプレイ中は新規武器候補へ戻さない。
     if(!player.retiredWeaponIds) player.retiredWeaponIds = new Set();
     opt.mats.forEach(id=>player.retiredWeaponIds.add(id));
+    const rarity=Math.max(0,...player.weapons.filter(w=>opt.mats.includes(w.id)).map(w=>w.rarity||0));
     player.weapons = player.weapons.filter(w=>!opt.mats.includes(w.id));
-    player.weapons.push({id:opt.id, level:0, timer:300});
+    player.weapons.push({id:opt.id, level:0, timer:300,rarity});
   }
   else if(['hp','speed','atk','def','atkspeed','pickup','luck'].includes(opt.type)){
     const counts = player.statUpgradeCounts || (player.statUpgradeCounts={hp:0,speed:0,atk:0,def:0,atkspeed:0,pickup:0,luck:0});
@@ -2575,7 +2578,7 @@ function showLevelUp(){
 
   const options = buildLevelUpOptions();
   const screen = document.getElementById('levelup-screen');
-  const owned=document.getElementById('owned-weapons');owned.replaceChildren();for(const w of player.weapons){const d=weaponDisplay(w.id);const el=document.createElement('span');el.textContent=d.icon+' '+d.name+' '+(w.level===0?'進化済': 'Lv.'+w.level);owned.append(el);} 
+  const owned=document.getElementById('owned-weapons');owned.replaceChildren();for(const w of player.weapons){const d=weaponDisplay(w.id);const el=document.createElement('span');el.textContent=d.icon+' '+d.name+' '+(w.level===0?'進化済': 'Lv.'+w.level);const r=rankOf(w);el.textContent+=' ｜'+r[0]+' ×'+r[2];el.style.color=r[1];el.style.borderColor=r[1];owned.append(el);} 
   const row = document.getElementById('levelup-cards');
   row.innerHTML='';
 
@@ -2722,7 +2725,7 @@ function showWeaponSelect(){
     c.onclick = ()=>{
       // 念のため武器選択でもBGM再生を確実に開始
       startTrack('main');
-      player.weapons.push({id, level:1, timer:300});
+      acquireWeapon(id,300);
       saveData.playCount=(Number(saveData.playCount)||0)+1;if(saveData.playCount>=10)unlockTitle('runs');saveGame();
       document.getElementById('start-screen').classList.add('hidden');
       hud.classList.remove('hidden');
@@ -3199,7 +3202,7 @@ function updateBulletHell(dt){
   if(!bulletHell.spawnedItem&&bulletHell.elapsed>=cfg.itemDelay){bulletHell.spawnedItem=true;bulletHell.item={x:canvas.width/2,y:canvas.height/2,r:34,pulse:0};for(let i=0;i<18;i++)spawnSpark(canvas.width/2+camX,canvas.height/2+camY,'#ffe66d',5);}
   const lv=bulletHell.level||1,waveInterval=Math.max(1050,2100-(lv-1)*100);
   if(bulletHell.elapsed>=800&&bulletHell.elapsed-bulletHell.lastWaveT>=waveInterval&&!bulletHell.spawnedItem){bulletHell.lastWaveT=bulletHell.elapsed;spawnBulletHellWave();}
-  for(const b of bulletHell.bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt*1000;if(player.chestInv<=0&&bulletHell.invT<=0&&dist(b.x,b.y,bulletHell.x,bulletHell.y)<b.r+12){player.damageEvents++;player.hp-=Math.max(1,trueBossAttackDamage(enemies.find(e=>e.isTrueBossFinal&&!e.dead),(TRUE_BOSS_FINAL.dmg||120))*0.28)*(player.defMul||1);bulletHell.invT=520;player.hitFlash=180;addShake(3);}}
+  for(const b of bulletHell.bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt*1000;if(player.chestInv<=0&&bulletHell.invT<=0&&dist(b.x,b.y,bulletHell.x,bulletHell.y)<b.r+12){player.damageEvents++;player.hp-=Math.max(1,trueBossAttackDamage(enemies.find(e=>e.isTrueBossFinal&&!e.dead),(TRUE_BOSS_FINAL.dmg||120)*finalBossHeartAttackMultiplier)*0.28)*(player.defMul||1);bulletHell.invT=520;player.hitFlash=180;addShake(3);}}
   bulletHell.bullets=bulletHell.bullets.filter(b=>b.life>0&&b.x>-60&&b.x<canvas.width+60&&b.y>-60&&b.y<canvas.height+60);
   if(bulletHell.item){bulletHell.item.pulse+=dt*7;if(dist(bulletHell.x,bulletHell.y,bulletHell.item.x,bulletHell.item.y)<bulletHell.item.r+18){exitBulletHell();return;}}
   if(bulletHell.elapsed>=cfg.duration&&!bulletHell.item){bulletHell.item={x:canvas.width/2,y:canvas.height/2,r:34,pulse:0};bulletHell.spawnedItem=true;for(let i=0;i<24;i++)spawnSpark(bulletHell.item.x,bulletHell.item.y,'#ffe66d',6);}
@@ -3425,7 +3428,11 @@ function updateEnemies(dt){
     // 真ボス第1戦の瞬間移動ボスだけは下の専用処理を使う。
     // hitTimer + player.invTimer で連続ヒットを防止。
     if(!e.dead && !e.trueBossTeleportOnly && d < e.r+player.radius && e.hitTimer<=0 && player.invTimer<=0){
-      const contactDmg = Math.max(1, trueBossAttackDamage(e, e.dmg));
+      // ラスボス接触専用：ハート150個で830/845/860。HP・特殊攻撃とは独立。
+      const contactBase = e.isSuperBoss && !e.isTrueBoss
+        ? ([830, 845, 860][Math.max(0, Math.min(2, (e.phase || 1)-1))] / 1.15) * (e.heartStrengthMul || 1)
+        : e.dmg;
+      const contactDmg = Math.max(1, trueBossAttackDamage(e, contactBase));
       applyBossDamageToPlayer(e, contactDmg, 1, 600, 260);
       e.hitTimer = 700;
       const ca = Math.atan2(player.y-e.y, player.x-e.x);
@@ -3446,13 +3453,13 @@ function updateEnemies(dt){
       const demo = findWeapon('demolition');
       const spike = findWeapon('spikearmor');
       if(apoc){
-        const as = EVO_STATS.apocalypse;
+        const as = rankedStats(EVO_STATS.apocalypse,apoc);
         spawnRing(e.x,e.y,'rgba(120,255,90,0.65)', as.retRadius, 300);
         spawnSpark(e.x,e.y,'#7bff6a',12);
         addShake(5);
         enemies.forEach(e2=>{ if(dist(e2.x,e2.y,e.x,e.y)<as.retRadius) damageEnemy(e2, as.retDmg, as.poison); });
       } else if(demo){
-        const ds = EVO_STATS.demolition;
+        const ds = rankedStats(EVO_STATS.demolition,demo);
         spawnRing(e.x,e.y,'rgba(255,140,60,0.6)', ds.radius, 260);
         spawnSpark(e.x,e.y,'#ff8c3c',10);
         addShake(4);
@@ -3682,7 +3689,7 @@ function gainXp(v){
     // Lv31の最終ティアへの見た目進化時にもステータスボーナスは適用する。
     if(player.level%10===1 && player.level>1){
       applyCharacterEvolutionBonus();
-      if(player.level<=40) showCharacterEvolutionAnnounce();
+      showCharacterEvolutionAnnounce();
       spawnRing(player.x,player.y,'rgba(255,105,180,0.7)', 90, 500);
       spawnSpark(player.x,player.y,'#ff69b4',16);
     }
