@@ -524,7 +524,13 @@ const trueBossBgm = document.getElementById('trueboss-bgm');
 if(trueBossBgm){ trueBossBgm.volume = 0.18; trueBossBgm.loop = true; }
 const bulletHellBgm = document.getElementById('bullethell-bgm');
 if(bulletHellBgm){ bulletHellBgm.volume = 0.20; bulletHellBgm.loop = true; }
+const abyssBgm = new Audio('assets/audio/abyss-theme.mp3');
+abyssBgm.loop=true; abyssBgm.volume=0.18;
+const trackAudio=()=>({'main':bgmAudio,'boss-phase1':bossPhase1Bgm,'boss-phase2':bossPhase2Bgm,'boss-phase3':bossPhase3Bgm,'trueboss':trueBossBgm,'bullethell':bulletHellBgm,'abyss':abyssBgm});
+function startAbyssTrack(){Object.values(trackAudio()).forEach(a=>a?.pause());currentTrack='abyss';abyssBgm.currentTime=0;if(musicEnabled)abyssBgm.play().catch(()=>{});}
+function restoreAbyssTrack(track){abyssBgm.pause();abyssBgm.currentTime=0;currentTrack=track||'main';const a=trackAudio()[currentTrack];if(a&&musicEnabled)a.play().catch(()=>{});}
 function ensureAudio(){
+  if(currentTrack==='abyss')return;
   if(window.storySceneActive) return;
   if(bgmAudio && musicEnabled){
     const p = bgmAudio.play();
@@ -606,6 +612,7 @@ function stopTrueBossTrack(){
   if(currentTrack === 'trueboss') currentTrack = null;
 }
 function startBulletHellTrack(){
+  abyssBgm.pause();
   if(bulletHellBgm){
     if(bgmAudio) bgmAudio.pause();
     if(bossPhase1Bgm) bossPhase1Bgm.pause();
@@ -626,6 +633,7 @@ function stopBulletHellTrack(){
   if(currentTrack === 'bullethell') currentTrack = null;
 }
 function stopTrack(){
+  abyssBgm.pause(); abyssBgm.currentTime=0;
   currentTrack = null;
   if(bgmAudio){
     bgmAudio.pause();
@@ -654,7 +662,9 @@ function stopTrack(){
 }
 function toggleMusic(){
   musicEnabled = !musicEnabled;
-  if(currentTrack === 'boss-phase1'){
+  if(currentTrack === 'abyss'){
+    if(musicEnabled)abyssBgm.play().catch(()=>{});else abyssBgm.pause();
+  } else if(currentTrack === 'boss-phase1'){
     if(musicEnabled && bossPhase1Bgm){
       const p = bossPhase1Bgm.play();
       if(p && typeof p.catch==='function') p.catch(()=>{});
@@ -3271,7 +3281,7 @@ function exitBulletHell(){
   stopBulletHellTrack();
   bulletHell.active=false;bulletHell.warning=false;bulletHell.messageT=0;updateBulletHellOverlay();bulletHell.bullets=[];bulletHell.item=null;bulletHell.elapsed=0;bulletHell.pointerActive=false;bulletHell.pointerX=null;bulletHell.pointerY=null;player.x=bulletHell.savedX;player.y=bulletHell.savedY;player.invTimer=1200;
   const boss=enemies.find(e=>e.isTrueBossFinal&&!e.dead);if(boss){boss.frozen=false;boss.timers=boss.timers||{};boss.timers.bullethell=BOSS_ABILITY_CONFIG.bullethell.interval;}
-  if(returnTrack==='trueboss') startTrueBossTrack(); else if(returnTrack==='boss-phase3') startBossPhase3Track(); else if(returnTrack==='boss-phase2') startBossPhase2Track(); else if(returnTrack==='boss-phase1') startBossPhase1Track(); else startTrack('main');
+  if(returnTrack==='abyss') startAbyssTrack(); else if(returnTrack==='trueboss') startTrueBossTrack(); else if(returnTrack==='boss-phase3') startBossPhase3Track(); else if(returnTrack==='boss-phase2') startBossPhase2Track(); else if(returnTrack==='boss-phase1') startBossPhase1Track(); else startTrack('main');
   triggerScreenFlash(550);addShake(8);spawnText(player.x,player.y-55,'ステージへ帰還！','#ffe66d',22);
 }
 // 弾幕ゲーム背景：v103_bullethell_trueboss_final_cutin_fixed.html と完全一致
@@ -3538,7 +3548,7 @@ function updateEnemyBolts(dt){
   enemyBolts.forEach(b=>{
     b.x += b.vx*dt; b.y += b.vy*dt;
     b.life -= dt*1000;
-    if(Math.random()<0.6) spawnTrail(b.x,b.y,b.color,4);
+    if(Math.random()<(b.abyss?.12:.6)) spawnTrail(b.x,b.y,b.color,4);
     if(!b.hit && dist(b.x,b.y,player.x,player.y) < b.r+player.radius && player.invTimer<=0){
       applyBossDamageToPlayer(b,b.dmg,1,500,220);
       player.invTimer = 500; player.hitFlash = 220;
@@ -4770,16 +4780,39 @@ function showAbyssQuiz(){
  function close(win){panel.remove();Object.keys(keys).forEach(k=>keys[k]=false);if(win)startAbyss();state='PLAYING';lastFrame=performance.now();requestAnimationFrame(loop);}
  function message(text,win){card.replaceChildren();const h=document.createElement('h2');h.textContent=text;card.append(h);const b=document.createElement('button');b.textContent='進む';b.onclick=()=>close(win);card.append(b);}
  function ask(q,opts,answer,next,shuffle=true){card.replaceChildren();const h=document.createElement('h2');h.textContent=q;card.append(h);const a=[...opts];if(shuffle)for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}for(const v of a){const b=document.createElement('button');b.textContent=v;b.style.cssText='display:block;width:100%;margin:8px 0;padding:12px;border-radius:10px;background:#493264;color:white;border:1px solid #a987d1;font-size:16px';b.onclick=()=>v===answer?next():message(q.startsWith('深淵')?'謎の卵は静かに消えていった……':'お前には資格がないようだ',false);card.append(b);}}
- ask('深淵の扉を開く勇気はあるか？',['はい','いいえ'],'はい',()=>ask('かたちゃんの身長をこたえよ',['152センチ','155センチ','157センチ','160センチ'],'157センチ',()=>ask('かたちゃんの好きなバンドは',['スピッツ','BUMP OF CHICKEN','サザンオールスターズ','たま','Mr.Children','SEKAI NO OWARI','ポルノグラフィティ','RADWIMPS'],'たま',()=>message('深淵の扉が開かれた',true))),false);
+ ask('深淵の扉を開く勇気はあるか？',['はい','いいえ'],'はい',()=>ask('かたちゃんの身長をこたえよ',['142センチ','145センチ','147センチ','150センチ'],'147センチ',()=>ask('かたちゃんの好きなバンドは',['スピッツ','BUMP OF CHICKEN','サザンオールスターズ','たま','Mr.Children','SEKAI NO OWARI','ポルノグラフィティ','RADWIMPS'],'たま',()=>message('深淵の扉が開かれた',true))),false);
 }
 function startAbyss(){
- abyssSaved={enemies,bossActive,bossArenaCenter,enemyBolts,projectiles,zones,meteors};enemies=[];enemyBolts=[];projectiles=[];zones=[];meteors=[];bossArenaCenter=null;
+ abyssSaved={enemies,bossActive,bossArenaCenter,enemyBolts,projectiles,zones,meteors,track:currentTrack};startAbyssTrack();enemies=[];enemyBolts=[];projectiles=[];zones=[];meteors=[];bossArenaCenter=null;
  const diff=DIFFICULTIES[difficulty], hp=TRUE_BOSS_FINAL.hp*diff.hpMul, dmg=860/1.15*(1+collectedHeartCount*.001)*.5;
  const e={x:player.x+220,y:player.y,hp:hp*10,maxHp:hp*10,abyssBase:hp,abyss:true,abyssPhase:0,abyssGrace:1.2,abyssTimer:2,abyssPattern:0,isBoss:true,isSuperBoss:false,name:abyssNames[0],key:'abyss',r:60,speed:45,dmg,color:abyssColors[0],dead:false,flash:0,hitTimer:0,poisonT:0,chillT:0,xpVal:0};enemies.push(e);bossActive=e;showBossAnnounce(e.name,true);triggerScreenFlash(500);
 }
-function abyssDefeat(e){const i=e.abyssPhase;discover('abyss'+i);unlockTitle('abyssTitle'+i);if(i===3){e.dead=true;const old=abyssSaved;abyssSaved=null;if(old){enemies=old.enemies;bossActive=old.bossActive;bossArenaCenter=old.bossArenaCenter;enemyBolts=old.enemyBolts;projectiles=old.projectiles;zones=old.zones;meteors=old.meteors;}spawnText(player.x,player.y-45,'深淵を超えた！','#e2baff',22);return;}e.abyssPhase++;e.name=abyssNames[i+1];e.color=abyssColors[i+1];e.hp=e.maxHp=e.abyssBase*[10,25,50,1000][i+1];e.abyssGrace=1.5;e.abyssTimer=2;e.abyssPattern=0;e.poisonT=0;e.chillT=0;e.abyssWarning=null;enemyBolts=[];showBossAnnounce(e.name,true);triggerScreenFlash(500);}
-function updateAbyss(e,dt){const i=e.abyssPhase;e.abyssGrace=Math.max(0,e.abyssGrace-dt);if(e.abyssGrace>0)return;const w=e.abyssWarning;if(w){w.t-=dt;if(w.t>0)return;e.abyssWarning=null;const dmg=100.8*[1.5,2,3,4][i]*DIFFICULTIES[difficulty].dmgMul*(1+collectedHeartCount*.001);if(w.kind===0||w.kind===3){if(dist(player.x,player.y,w.x,w.y)<w.r)applyBossDamageToPlayer(e,dmg);spawnRing(w.x,w.y,e.color,w.r,450);}else{const n=w.kind===1?12:w.kind===2?18:24;for(let j=0;j<n;j++){const a=w.angle+j*Math.PI*2/n;enemyBolts.push({x:e.x,y:e.y,vx:Math.cos(a)*190,vy:Math.sin(a)*190,dmg,r:8,life:3000,color:e.color});}}e.abyssTimer=Math.max(1.1,3-i*.45);return;}e.abyssTimer-=dt;if(e.abyssTimer<=0){const kind=e.abyssPattern++%[2,3,4,6][i];e.abyssWarning={kind,t:1.1,x:kind===3?player.x:e.x,y:kind===3?player.y:e.y,r:kind===3?115:160+i*20,angle:Math.atan2(player.y-e.y,player.x-e.x)};spawnText(e.x,e.y-e.r-30,['深淵の波動','星の嵐','旋回弾幕','深淵の領域','女王の審判','終焉の舞踏'][kind],e.color,18);}}
-function drawAbyss(ctx,e,x,y){const im=abyssSprites[e.abyssPhase].img;if(im.complete&&im.naturalWidth){const scale=e.r*3/Math.max(im.naturalWidth,im.naturalHeight);const w=im.naturalWidth*scale,h=im.naturalHeight*scale;ctx.drawImage(im,x-w/2,y-h/2,w,h);}else drawEnemyShape(ctx,e,x,y);const w=e.abyssWarning;if(w){ctx.save();ctx.strokeStyle=e.color;ctx.lineWidth=3;ctx.setLineDash([8,5]);ctx.beginPath();ctx.arc(w.x-camX,w.y-camY,w.r,0,Math.PI*2);ctx.stroke();ctx.restore();}}
+function abyssDefeat(e){const i=e.abyssPhase;discover('abyss'+i);unlockTitle('abyssTitle'+i);if(i===3){e.dead=true;const old=abyssSaved;abyssSaved=null;restoreAbyssTrack(old?.track);if(old){enemies=old.enemies;bossActive=old.bossActive;bossArenaCenter=old.bossArenaCenter;enemyBolts=old.enemyBolts;projectiles=old.projectiles;zones=old.zones;meteors=old.meteors;}spawnText(player.x,player.y-45,'深淵を超えた！','#e2baff',22);return;}e.abyssPhase++;e.name=abyssNames[i+1];e.color=abyssColors[i+1];e.hp=e.maxHp=e.abyssBase*[10,25,50,1000][i+1];e.abyssGrace=1.5;e.abyssTimer=2;e.abyssPattern=0;e.poisonT=0;e.chillT=0;e.abyssWarning=null;e.abyssQueue=[];enemyBolts=[];showBossAnnounce(e.name,true);triggerScreenFlash(500);}
+// Hidden boss: staggered volleys and independently telegraphed circles.
+function updateAbyss(e,dt){
+ const i=e.abyssPhase; e.abyssGrace=Math.max(0,e.abyssGrace-dt); if(e.abyssGrace>0)return;
+ const dmg=100.8*[1.5,2,3,4][i]*DIFFICULTIES[difficulty].dmgMul*(1+collectedHeartCount*.001);
+ const q=e.abyssQueue||(e.abyssQueue=[]);
+ function volley(angle,n,spread,speed){for(let j=0;j<n&&enemyBolts.length<180;j++){const a=angle+(j-(n-1)/2)*spread;enemyBolts.push({x:e.x,y:e.y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,dmg,r:7,life:3400,color:e.color,abyss:true});}}
+ for(const w of q){w.t-=dt;if(w.t>0)continue;w.done=true;
+  if(w.kind==='circle'){if(dist(player.x,player.y,w.x,w.y)<w.r)applyBossDamageToPlayer(e,dmg);spawnRing(w.x,w.y,e.color,w.r,450);}
+  else if(w.kind==='fan')volley(w.angle,7+i*2,.16,240+i*35);
+  else volley(w.angle,12+i*4,Math.PI*2/(12+i*4),210+i*35);
+ }
+ e.abyssQueue=q.filter(w=>!w.done);e.abyssTimer-=dt;if(e.abyssTimer>0)return;
+ const patterns=[['fan','wave'],['fan','spiral','field'],['spiral','field','cross','fan'],['spiral','field','cross','storm']][i];
+ const kind=patterns[e.abyssPattern++%patterns.length],angle=Math.atan2(player.y-e.y,player.x-e.x);
+ const names={fan:'星の連射',wave:'深淵の波動',spiral:'旋回星嵐',field:'深淵の領域',cross:'紅蓮の交響',storm:'終焉の舞踏'};
+ spawnText(e.x,e.y-e.r-30,names[kind],e.color,18);
+ const add=(kind,t,angle,x=e.x,y=e.y,r=150)=>e.abyssQueue.push({kind,t,angle,x,y,r});
+ if(kind==='fan')for(let j=0;j<2+i;j++)add('fan',.75+j*.23,angle+(j%2?.12:-.12));
+ if(kind==='wave'){add('circle',.85,0,e.x,e.y,175);add('ring',1.1,angle);}
+ if(kind==='spiral'||kind==='storm')for(let j=0;j<3+i;j++)add('ring',.7+j*.22,angle+j*.17);
+ if(kind==='field'||kind==='storm'){for(let j=0;j<3+i;j++){const a=angle+j*2.4;add('circle',.9+j*.24,0,player.x+Math.cos(a)*(j?120:0),player.y+Math.sin(a)*(j?120:0),85+i*10);}}
+ if(kind==='cross'){for(let j=0;j<4;j++)add('fan',.7+j*.2,angle+j*Math.PI/2);}
+ e.abyssTimer=[2.1,1.75,1.4,1.15][i];
+}
+function drawAbyss(ctx,e,x,y){const im=abyssSprites[e.abyssPhase].img;if(im.complete&&im.naturalWidth){const scale=e.r*3/Math.max(im.naturalWidth,im.naturalHeight);const w=im.naturalWidth*scale,h=im.naturalHeight*scale;ctx.drawImage(im,x-w/2,y-h/2,w,h);}else drawEnemyShape(ctx,e,x,y);for(const w of e.abyssQueue||[]){if(w.t>1.05)continue;ctx.save();ctx.strokeStyle=e.color;ctx.fillStyle=e.color;ctx.lineWidth=2;ctx.globalAlpha=.18;if(w.kind==='circle'){ctx.beginPath();ctx.arc(w.x-camX,w.y-camY,w.r,0,Math.PI*2);ctx.fill();ctx.globalAlpha=.85;ctx.setLineDash([8,5]);ctx.stroke();}else{ctx.globalAlpha=.45;ctx.beginPath();ctx.arc(x,y,e.r+15,0,Math.PI*2);ctx.stroke();if(w.kind==='fan'){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(w.angle)*180,y+Math.sin(w.angle)*180);ctx.stroke();}}ctx.restore();}}
 
 // ---------- Boot ----------
 // 起動時にもゲーム本体を必ず初期化してからオープニングを開始する。
