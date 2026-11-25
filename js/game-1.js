@@ -4753,21 +4753,6 @@ if(DEBUG_MODE_ENABLED){
 }
 // ===== DEBUG MODE END =====
 
-// ---------- Boot ----------
-// 起動時にもゲーム本体を必ず初期化してからオープニングを開始する。
-// オープニング→難易度→キャラ→武器選択の途中で player が未生成になる不具合を防止。
-resetGame();
-state = 'START';
-showDifficultyScreen();
-updateHud();
-
-})();
-window.__finalThankYouItemImage = new Image();
-window.__finalThankYouItemImage.src = 'assets/images/5e5cbdb27b64f3371be2c7e5.png';
-window.__finalThankYouSceneImage = 'assets/images/a7a434b6c47dd5365ea53402.jpg';
-window.__reviveItemImage = new Image();
-window.__reviveItemImage.src = "assets/images/cfc92cf84ff0b58bbdcad05c.png";
-
 // Optional secret encounter
 let abyssUsed=false,abyssCode=0,abyssSaved=null,abyssQuizPending=false;
 const abyssNames=['深淵のかたちゃん','侵蝕のかたちゃん','暴走のかたちゃん','深淵の女王かたちゃん'];
@@ -4794,3 +4779,19 @@ function startAbyss(){
 function abyssDefeat(e){const i=e.abyssPhase;discover('abyss'+i);unlockTitle('abyssTitle'+i);if(i===3){e.dead=true;const old=abyssSaved;abyssSaved=null;if(old){enemies=old.enemies;bossActive=old.bossActive;bossArenaCenter=old.bossArenaCenter;enemyBolts=old.enemyBolts;projectiles=old.projectiles;zones=old.zones;meteors=old.meteors;}spawnText(player.x,player.y-45,'深淵を超えた！','#e2baff',22);return;}e.abyssPhase++;e.name=abyssNames[i+1];e.color=abyssColors[i+1];e.hp=e.maxHp=e.abyssBase*[10,25,50,100][i+1];e.abyssGrace=1.5;e.abyssTimer=2;e.abyssPattern=0;e.poisonT=0;e.chillT=0;e.abyssWarning=null;enemyBolts=[];showBossAnnounce(e.name,true);triggerScreenFlash(500);}
 function updateAbyss(e,dt){const i=e.abyssPhase;e.abyssGrace=Math.max(0,e.abyssGrace-dt);e.hp=Math.min(e.maxHp,e.hp+e.maxHp*[0,.001,.003,.005][i]*dt);if(e.abyssGrace>0)return;const w=e.abyssWarning;if(w){w.t-=dt;if(w.t>0)return;e.abyssWarning=null;const dmg=100.8*[1.5,2,3,4][i]*DIFFICULTIES[difficulty].dmgMul*(1+collectedHeartCount*.001);if(w.kind===0||w.kind===3){if(dist(player.x,player.y,w.x,w.y)<w.r)applyBossDamageToPlayer(e,dmg);spawnRing(w.x,w.y,e.color,w.r,450);}else{const n=w.kind===1?12:w.kind===2?18:24;for(let j=0;j<n;j++){const a=w.angle+j*Math.PI*2/n;enemyBolts.push({x:e.x,y:e.y,vx:Math.cos(a)*190,vy:Math.sin(a)*190,dmg,r:8,life:3000,color:e.color});}}e.abyssTimer=Math.max(1.1,3-i*.45);return;}e.abyssTimer-=dt;if(e.abyssTimer<=0){const kind=e.abyssPattern++%[2,3,4,6][i];e.abyssWarning={kind,t:1.1,x:kind===3?player.x:e.x,y:kind===3?player.y:e.y,r:kind===3?115:160+i*20,angle:Math.atan2(player.y-e.y,player.x-e.x)};spawnText(e.x,e.y-e.r-30,['深淵の波動','星の嵐','旋回弾幕','深淵の領域','女王の審判','終焉の舞踏'][kind],e.color,18);}}
 function drawAbyss(ctx,e,x,y){const im=abyssSprites[e.abyssPhase].img;if(im.complete&&im.naturalWidth)ctx.drawImage(im,x-e.r*1.5,y-e.r*1.5,e.r*3,e.r*3);else drawEnemyShape(ctx,e,x,y);const w=e.abyssWarning;if(w){ctx.save();ctx.strokeStyle=e.color;ctx.lineWidth=3;ctx.setLineDash([8,5]);ctx.beginPath();ctx.arc(w.x-camX,w.y-camY,w.r,0,Math.PI*2);ctx.stroke();ctx.restore();}}
+
+// ---------- Boot ----------
+// 起動時にもゲーム本体を必ず初期化してからオープニングを開始する。
+// オープニング→難易度→キャラ→武器選択の途中で player が未生成になる不具合を防止。
+resetGame();
+state = 'START';
+showDifficultyScreen();
+updateHud();
+
+})();
+window.__finalThankYouItemImage = new Image();
+window.__finalThankYouItemImage.src = 'assets/images/5e5cbdb27b64f3371be2c7e5.png';
+window.__finalThankYouSceneImage = 'assets/images/a7a434b6c47dd5365ea53402.jpg';
+window.__reviveItemImage = new Image();
+window.__reviveItemImage.src = "assets/images/cfc92cf84ff0b58bbdcad05c.png";
+
