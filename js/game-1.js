@@ -2654,7 +2654,6 @@ function showLevelUp(){
     showChoiceRank(c,opt.rarity);
     if(opt.type==='mythUpgrade'){c.style.borderColor='#ffd66b';c.style.boxShadow='0 0 12px #ffd66b66';}
     c.onclick = ()=>{
-      if(opt.type==='mythUpgrade'&&!player.mythFocus&&!confirm('この覚醒武器を育成対象にしますか？ このプレイ中は変更できません。'))return;
       if(opt.type==='score'){
         addScore(opt.amount || 1000);
       } else {
@@ -3255,7 +3254,7 @@ function updateBulletHell(dt){
   if(!bulletHell.spawnedItem&&bulletHell.elapsed>=cfg.itemDelay){bulletHell.spawnedItem=true;bulletHell.item={x:canvas.width/2,y:canvas.height/2,r:34,pulse:0};for(let i=0;i<18;i++)spawnSpark(canvas.width/2+camX,canvas.height/2+camY,'#ffe66d',5);}
   const lv=bulletHell.level||1,waveInterval=Math.max(1050,2100-(lv-1)*100);
   if(bulletHell.elapsed>=800&&bulletHell.elapsed-bulletHell.lastWaveT>=waveInterval&&!bulletHell.spawnedItem){bulletHell.lastWaveT=bulletHell.elapsed;spawnBulletHellWave();}
-  for(const b of bulletHell.bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt*1000;if(player.chestInv<=0&&bulletHell.invT<=0&&dist(b.x,b.y,bulletHell.x,bulletHell.y)<b.r+12){player.damageEvents++;player.hp-=Math.max(1,trueBossAttackDamage(enemies.find(e=>e.isTrueBossFinal&&!e.dead),(TRUE_BOSS_FINAL.dmg||120)*finalBossHeartAttackMultiplier)*0.28)*(player.defMul||1);bulletHell.invT=520;player.hitFlash=180;addShake(3);}}
+  for(const b of bulletHell.bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt*1000;if(player.chestInv<=0&&bulletHell.invT<=0&&dist(b.x,b.y,bulletHell.x,bulletHell.y)<b.r+12){player.damageEvents++;player.hp-=Math.max(1,trueBossAttackDamage(enemies.find(e=>e.isTrueBossFinal&&!e.dead),(TRUE_BOSS_FINAL.dmg||120)*finalBossHeartAttackMultiplier)*0.84)*(player.defMul||1);bulletHell.invT=520;player.hitFlash=180;addShake(3);}}
   bulletHell.bullets=bulletHell.bullets.filter(b=>b.life>0&&b.x>-60&&b.x<canvas.width+60&&b.y>-60&&b.y<canvas.height+60);
   if(bulletHell.item){bulletHell.item.pulse+=dt*7;if(dist(bulletHell.x,bulletHell.y,bulletHell.item.x,bulletHell.item.y)<bulletHell.item.r+18){exitBulletHell();return;}}
   if(bulletHell.elapsed>=cfg.duration&&!bulletHell.item){bulletHell.item={x:canvas.width/2,y:canvas.height/2,r:34,pulse:0};bulletHell.spawnedItem=true;for(let i=0;i<24;i++)spawnSpark(bulletHell.item.x,bulletHell.item.y,'#ffe66d',6);}
@@ -4082,6 +4081,29 @@ function drawSpecialWeaponCompanions(){
 // ===== END SPECIAL WEAPON COMPANION EFFECTS =====
 
 function fxVisible(x,y,r=60){return x+r>=0&&y+r>=0&&x-r<=canvas.width&&y-r<=canvas.height;}
+// Distinct, bounded, visual-only myth signatures.
+function drawMythSignature(p,x,y,a,r,tier){
+ const t=1-a, f=Math.sin(Math.PI*t), n=8+tier*2, tau=Math.PI*2;
+ ctx.save();ctx.translate(x,y);ctx.globalAlpha=f*.85;ctx.strokeStyle=p.color;ctx.fillStyle=p.color;ctx.lineWidth=5;
+ const line=(pts)=>{ctx.beginPath();pts.forEach(([u,v],i)=>i?ctx.lineTo(u,v):ctx.moveTo(u,v));ctx.stroke();};
+ const polar=(q,d)=>[Math.cos(q)*d,Math.sin(q)*d];
+ const glow=ctx.createRadialGradient(0,0,0,0,0,r*1.3);glow.addColorStop(0,p.color);glow.addColorStop(1,'transparent');ctx.fillStyle=glow;ctx.globalAlpha=f*.23;ctx.beginPath();ctx.arc(0,0,r*1.3,0,tau);ctx.fill();ctx.globalAlpha=f*.85;ctx.fillStyle=p.color;
+ for(let j=0;j<n;j++){
+  const q=j*tau/n+t*.8;ctx.save();ctx.rotate(q);
+  switch(p.kind){
+   case 'heavenharvest': {const d=r*.75,k=r*.12;ctx.translate(d,0);ctx.rotate(-q);ctx.beginPath();ctx.moveTo(0,k);ctx.bezierCurveTo(-2*k,-.4*k,-k,-1.6*k,0,-.5*k);ctx.bezierCurveTo(k,-1.6*k,2*k,-.4*k,0,k);ctx.fill();ctx.strokeStyle='#fff3b9';ctx.stroke();break;}
+   case 'judgmentgravity': {ctx.beginPath();for(let k=0;k<=32;k++){const u=k/32,ang=u*4.8+t*5,rr=r*(.12+.95*u);const [xx,yy]=polar(ang,rr);k?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);}ctx.stroke();break;}
+   case 'godslayer': {ctx.beginPath();ctx.moveTo(r*.15,-r*.08);ctx.quadraticCurveTo(r*.75,-r*.35,r*1.2,0);ctx.quadraticCurveTo(r*.65,-r*.06,r*.15,-r*.08);ctx.fill();ctx.strokeStyle='#fff7d5';ctx.stroke();break;}
+   case 'galearcher': {line([[r*.12,0],[r*1.2,0],[r*.99,-r*.07],[r*1.2,0],[r*.99,r*.07]]);ctx.strokeStyle='#fff';ctx.lineWidth=2;line([[r*.4,0],[r*1.2,0]]);break;}
+   case 'frozencomet': {line([[r*.18,0],[r*1.12,0]]);for(let k=1;k<=3;k++){const d=r*(.2+k*.21);line([[d-r*.12,-r*.12],[d,0],[d-r*.12,r*.12]]);}break;}
+   case 'apocalypse': {ctx.beginPath();ctx.ellipse(r*.55,0,r*.57,r*.16,0,0,tau);ctx.fill();ctx.strokeStyle='#eaffad';ctx.stroke();break;}
+   case 'voidstorm': {const pts=Array.from({length:7},(_,k)=>[r*(.1+k*.18),k===0?0:Math.sin(k*8+j*3)*r*.12]);ctx.lineWidth=9;line(pts);ctx.strokeStyle='#fff';ctx.lineWidth=2;line(pts);break;}
+  }ctx.restore();
+ }
+ if(p.kind==='judgmentgravity'){ctx.fillStyle='#160b30';ctx.beginPath();ctx.arc(0,0,r*.2,0,tau);ctx.fill();}
+ for(let k=0;k<3;k++)fxArc(0,0,r*(.65+k*.2),k===1?'#fff5cf':p.color,3,f*.65,t*2+k,t*2+k+tau*.8);
+ ctx.restore();
+}
 function fxRankColor(p){return p.mythColor|| (p.fxRank?weaponRanks[p.fxRank][1]:p.color);}
 function fxArc(x,y,r,color,width,alpha,start=0,end=Math.PI*2){ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=width;ctx.globalAlpha=alpha;ctx.arc(x,y,Math.max(1,r),start,end);ctx.stroke();ctx.globalAlpha=1;}
 function render(){
@@ -4181,6 +4203,7 @@ function render(){
     if(!['beam','daisukiCharge'].includes(p.type)&&!fxVisible(x,y,Math.max(280,p.maxR||0,p.r||0)))return;
     if(p.type==='mythAura'){
       const stage=p.stage||3, tier=p.tier||0, r=p.maxR*(.35+.65*(1-a));
+      if(stage===3){drawMythSignature(p,x,y,a,r,tier);return;}
       ctx.save();ctx.translate(x,y);ctx.rotate((1-a)*(stage===3?2.4:1.2));
       const n=stage===3?10+tier*2:stage===2?8:5;
       for(let j=0;j<stage+1;j++)fxArc(0,0,r*(.48+j*.15),j%2?'#fff0bd':p.color,stage===3?3:2,a*.65, j*.6,j*.6+Math.PI*(stage===1?1.4:2));
