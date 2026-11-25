@@ -882,7 +882,7 @@ function rewardText(d){return statNames[d[3]]+' '+(d[3]==='def'?'−':'+')+d[4]+
 function titleStats(){const a={hp:0,atk:0,def:0,speed:0,xp:0};for(const d of titleDefs)if(titles()[d[0]]){if(d[3]==='all')for(const k in a)a[k]+=d[4];else a[d[3]]+=d[4];}a.def=Math.min(40,a.def);return a;}
 const titleQueue=[];let titleShowing=false;
 function showTitleNotice(){if(titleShowing||!titleQueue.length)return;titleShowing=true;const d=titleQueue.shift();const el=document.createElement('div');el.setAttribute('role','status');el.style.cssText='position:fixed;top:12%;left:50%;transform:translateX(-50%);z-index:99999;pointer-events:none;background:#262039;color:white;border:2px solid '+(d.notice?d.color:rankColors[d[5]])+';border-radius:16px;padding:14px 24px;text-align:center;max-width:85vw;box-shadow:0 3px 12px #0006';if(d.images){const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;justify-content:center;gap:12px';d.images.forEach((src,i)=>{if(i)row.append('→');const img=document.createElement('img');img.src=src;img.style.cssText='width:82px;height:82px;object-fit:contain';row.append(img);});el.append(row);}for(const [v,c] of (d.notice?[[d.heading,d.color],[d.name,'white'],[d.detail,'#9be9ac']]:[['🏆 称号獲得！ '+ranks[d[5]],rankColors[d[5]]],[d[1],'white'],[d[2],'#eee'],['永久強化 '+rewardText(d)+'（次回から）','#9be9ac']])){const p=document.createElement('div');p.textContent=v;p.style.color=c;p.style.margin='4px';el.append(p);}document.body.append(el);setTimeout(()=>{el.remove();titleShowing=false;showTitleNotice();},2800);}
-function unlockTitle(id){if(titles()[id])return;const d=titleDefs.find(x=>x[0]===id);if(!d)return;titles()[id]=true;saveGame();titleQueue.push(d);showTitleNotice();if(id!=='all'&&titleDefs.every(x=>x[0]==='all'||titles()[x[0]]))unlockTitle('all');}
+function unlockTitle(id){if(titles()[id])return;const d=titleDefs.find(x=>x[0]===id);if(!d)return;titles()[id]=true;saveGame();titleQueue.push(d);showTitleNotice();if(id!=='all'&&titleDefs.every(x=>x[0]==='all'||x[0].startsWith('abyss')||titles()[x[0]]))unlockTitle('all');}
 function titleCounters(){return saveData.titleCounters ||= {};}
 function countTitle(k){const c=titleCounters();c[k]=(Number(c[k])||0)+1;saveGame();}
 function checkTitles(){const c=titleCounters(),runs=Number(saveData.playCount)||0,kills=Number(saveData.totalMinionKills)||0,boss=c.boss||0,chest=c.chest||0,final=c.final||0,truewins=c.truewins||0,special=c.special||0,album=albumEntries().filter(a=>collection()[a[0]]).length,level=player.level,weapons=player.weapons.length,maxweapon=player.weapons.some(w=>WEAPONS[w.id]&&w.level>=WEAPONS[w.id].maxLevel),time=elapsed,costumes=['katateddy','katagacha','suiteddy','suigacha'].every(k=>collection()[k]),both=c.girl&&c.boy;
@@ -907,7 +907,7 @@ if(time>=1800)unlockTitle("time30");
 if(kills>=10000)unlockTitle("kills");
 if(costumes)unlockTitle("costumes");
 if(level>=100)unlockTitle("lv100");
-if(album===albumEntries().length)unlockTitle("album");
+if(baseAlbumEntries().every(a=>collection()[a[0]]))unlockTitle("album");
 if(chest>=100)unlockTitle("chest100");
 if(truewins>=1)unlockTitle("true");
 if(both)unlockTitle("both");
@@ -916,9 +916,10 @@ if(truewins>=5)unlockTitle("true5");
 if(kills>=50000)unlockTitle("kills50k");
 }
 
-function albumEntries(){return [...BOSS_TYPES.map(b=>[b.key,b.name,BOSS_SPRITES[b.key]]),['demonking','王者かたちゃん',BOSS_SPRITES.demonking],['phase2','王者かたちゃん【覚醒】',BOSS_PHASE2_SPRITE],['phase3','王者かたちゃん【真の姿】',BOSS_PHASE3_SPRITE],...['kata','sui'].flatMap(r=>{const n=r==='kata'?'かたちゃん':'すいちゃん';return [[r+'normal',n,TRUE_BOSS_ROLE_SPRITES[r].normal],[r+'hit',n+' 別の姿',TRUE_BOSS_ROLE_SPRITES[r].hit],[r+'teddy',n+' くまぬい衣装',TRUE_BOSS_TEDDY_SPRITES[r]],[r+'gacha',n+' ガチャ衣装',TRUE_BOSS_GACHA_SPRITES[r]]];}),['truefinal','真ボス最終形態',TRUE_BOSS_FINAL_SPRITE]];}
-function discover(id){if(collection()[id])return;collection()[id]=true;if(albumEntries().every(a=>collection()[a[0]]))unlockTitle('album');saveGame();}
-function showCollection(){const panel=document.getElementById('collection-panel');panel.replaceChildren();const entries=albumEntries();const head=document.createElement('h2');head.textContent='図鑑 '+entries.filter(a=>collection()[a[0]]).length+'/'+entries.length;panel.append(head);const grid=document.createElement('div');grid.className='album-grid';for(const [id,name,sprite] of entries){const tile=document.createElement('div');if(collection()[id]){const img=document.createElement('img');img.src=sprite.img.src;tile.append(img);tile.append(document.createTextNode(name));}else{tile.textContent='？？？';}grid.append(tile);}panel.append(grid);const th=document.createElement('h2');th.textContent='称号・永久強化 '+titleDefs.filter(d=>titles()[d[0]]).length+'/'+titleDefs.length;panel.append(th);const summary=document.createElement('p');summary.textContent='合計（次回開始時）：'+Object.entries(titleStats()).map(([k,v])=>statNames[k]+(k==='def'?' −':' +')+v+'%').join(' / ');panel.append(summary);for(const d of titleDefs){const [id,name,cond]=d;const line=document.createElement('p');line.style.cssText='border-left:4px solid '+rankColors[d[5]]+';padding:8px;text-align:left';line.textContent=(titles()[id]?'✓ 獲得済み ':'🔒 未獲得 ')+ranks[d[5]]+' ｜ '+name+' ｜ '+cond+' ｜ '+rewardText(d);panel.append(line);}document.getElementById('collection-screen').classList.remove('hidden');}
+function baseAlbumEntries(){return [...BOSS_TYPES.map(b=>[b.key,b.name,BOSS_SPRITES[b.key]]),['demonking','王者かたちゃん',BOSS_SPRITES.demonking],['phase2','王者かたちゃん【覚醒】',BOSS_PHASE2_SPRITE],['phase3','王者かたちゃん【真の姿】',BOSS_PHASE3_SPRITE],...['kata','sui'].flatMap(r=>{const n=r==='kata'?'かたちゃん':'すいちゃん';return [[r+'normal',n,TRUE_BOSS_ROLE_SPRITES[r].normal],[r+'teddy',n+' くまぬい衣装',TRUE_BOSS_TEDDY_SPRITES[r]],[r+'gacha',n+' ガチャ衣装',TRUE_BOSS_GACHA_SPRITES[r]]];}),['truefinal','真ボス最終形態',TRUE_BOSS_FINAL_SPRITE]];}
+function albumEntries(){return [...baseAlbumEntries(),...abyssSprites.map((sprite,i)=>["abyss"+i,abyssNames[i],sprite]).filter(a=>collection()[a[0]])];}
+function discover(id){if(collection()[id])return;collection()[id]=true;if(baseAlbumEntries().every(a=>collection()[a[0]]))unlockTitle('album');saveGame();}
+function showCollection(){const panel=document.getElementById('collection-panel');panel.replaceChildren();const entries=albumEntries();const head=document.createElement('h2');head.textContent='図鑑 '+entries.filter(a=>collection()[a[0]]).length+'/'+entries.length;panel.append(head);const grid=document.createElement('div');grid.className='album-grid';for(const [id,name,sprite] of entries){const tile=document.createElement('div');if(collection()[id]){const img=document.createElement('img');img.src=sprite.img.src;tile.append(img);tile.append(document.createTextNode(name));}else{tile.textContent='？？？';}grid.append(tile);}panel.append(grid);const th=document.createElement('h2');th.textContent='称号・永久強化 '+titleDefs.filter(d=>titles()[d[0]]).length+'/'+titleDefs.length;panel.append(th);const summary=document.createElement('p');summary.textContent='合計（次回開始時）：'+Object.entries(titleStats()).map(([k,v])=>statNames[k]+(k==='def'?' −':' +')+v+'%').join(' / ');panel.append(summary);for(const d of titleDefs){const [id,name,cond]=d;const line=document.createElement('p');line.style.cssText='border-left:4px solid '+rankColors[d[5]]+';padding:8px;text-align:left';if(id.startsWith('abyss')&&!titles()[id]){line.textContent='🔒 ？？？ ｜ ？？？ ｜ ？？？';line.style.borderColor='#777';panel.append(line);continue;}line.textContent=(titles()[id]?'✓ 獲得済み ':'🔒 未獲得 ')+ranks[d[5]]+' ｜ '+name+' ｜ '+cond+' ｜ '+rewardText(d);panel.append(line);}document.getElementById('collection-screen').classList.remove('hidden');}
 function newPlayer(){
   return {
     x:0, y:0, hp:130, maxHp:130, speed:190, radius:16,
@@ -939,6 +940,7 @@ function newPlayer(){
 }
 
 function resetGame(){
+  abyssUsed=false; abyssCode=0; abyssSaved=null; abyssQuizPending=false; document.getElementById("abyss-dialog")?.remove();
   specialClearSequenceActive = false;
   player = newPlayer();
   const t=titleStats(); player.maxHp=Math.round(player.maxHp*(1+t.hp/100));player.hp=player.maxHp;player.atkMul*=1+t.atk/100;player.defMul*=1-t.def/100;player.speed*=1+t.speed/100;player.titleXp=1+t.xp/100;
@@ -1467,8 +1469,10 @@ function showThankYouScene(){
 
 // ---------- Damage / death ----------
 function damageEnemy(e, dmg, poison, silent, chill, rawDmg, sourceId){
+  if(e.dead || (e.abyss && e.abyssGrace>0))return;
   let actualDmg = rawDmg ? dmg : dmg * (player.atkMul||1)*(player.chestAtk>0?1.3:1);
   if(e.isTrueBoss && e.trueBossDefenseDownT>0) actualDmg *= (e.trueBossDefenseMul||1);
+  if(e.abyss) actualDmg *= [0.8,0.6,0.4,0.2][e.abyssPhase];
   if(Number.isFinite(actualDmg) && actualDmg > 0) addScore(actualDmg);
   e.hp -= actualDmg;
   e.flash = 100;
@@ -1484,6 +1488,7 @@ function damageEnemy(e, dmg, poison, silent, chill, rawDmg, sourceId){
     spawnText(e.x+rand(-6,6), e.y-e.r, Math.round(actualDmg).toString(), poison?'#9dff8f':(chill?'#bfe9ff':'#ffe066'));
   }
   if(e.hp<=0 && !e.dead){
+    if(e.abyss){abyssDefeat(e);return;}
     // ---- super boss phase transition (instead of dying) ----
     if(e.isSuperBoss && !e.isTrueBoss && !e.isTrueBossFinal && e.phase < 3){
       e.phase++;
@@ -1533,6 +1538,7 @@ function damageEnemy(e, dmg, poison, silent, chill, rawDmg, sourceId){
       saveData.totalMinionKills = Math.max(0, Number(saveData.totalMinionKills) || 0) + 1;
     }
     if(saveData.totalMinionKills>=10000)unlockTitle('kills');
+    if(!e.isBoss&&!abyssUsed&&Math.random()<0.000001)dropAbyssEgg(e.x,e.y);
     if(!e.isBoss&&Math.random()<.005)powerups.push({x:e.x,y:e.y,type:'chest'});
     saveData.achievements.octopus = saveData.totalKills;
     refreshTrueBossUnlock();
@@ -3419,6 +3425,8 @@ function updateBossBulletHell(e,dt){if(bulletHell.active||bulletHell.warning||pl
 
 function updateEnemies(dt){
   for(const e of enemies){
+    if(e.dead)continue;
+    if(e.abyss)updateAbyss(e,dt);
     const a = Math.atan2(player.y-e.y, player.x-e.x);
     e.angle = a;
     if(e.chillT>0){ e.chillT -= dt*1000; }
@@ -3446,8 +3454,7 @@ function updateEnemies(dt){
     if(e.poisonT>0 && e.hp>0){
       e.poisonT -= dt*1000;
       const poisonTick = Math.max(0, e.poisonDmg*dt);
-      e.hp -= poisonTick;
-      addScore(poisonTick);
+      if(e.abyss)damageEnemy(e,poisonTick,null,true,null,true);else {e.hp -= poisonTick;addScore(poisonTick);}
     }
     if(e.isSuperBoss){
       if(bossArenaCenter){
@@ -3481,7 +3488,7 @@ function updateEnemies(dt){
     // hitTimer + player.invTimer で連続ヒットを防止。
     if(!e.dead && !e.trueBossTeleportOnly && d < e.r+player.radius && e.hitTimer<=0 && player.invTimer<=0){
       // ラスボス接触専用：ハート150個で830/845/860。HP・特殊攻撃とは独立。
-      const contactBase = e.isSuperBoss && !e.isTrueBoss
+      const contactBase = e.abyss ? e.dmg : e.isSuperBoss && !e.isTrueBoss
         ? ([830, 845, 860][Math.max(0, Math.min(2, (e.phase || 1)-1))] / 1.15) * (e.heartStrengthMul || 1)
         : e.dmg;
       const contactDmg = Math.max(1, trueBossAttackDamage(e, contactBase));
@@ -3698,6 +3705,7 @@ function updatePickups(dt){
       else if(p.type==='nuke') nukeAllEnemies();
       else if(p.type==='revive') gainRevive();
       else if(p.type==='chest'){countTitle('chest');checkTitles();const n=Math.floor(Math.random()*5);const labels=['XP +500','HP 30%回復','攻撃力 +30% / 20秒','移動速度 +20% / 20秒','無敵 5秒'];if(n===0)gainXp(500);else if(n===1)player.hp=Math.min(player.maxHp,player.hp+player.maxHp*.3);else if(n===2)player.chestAtk=20;else if(n===3)player.chestSpeed=20;else player.chestInv=5;spawnText(player.x,player.y-35,labels[n],'#ffd700',16);}
+      else if(p.type==='abyssEgg'){abyssQuizPending=true;}
       else if(p.type==='thankyou') showThankYouScene();
       return false;
     }
@@ -4344,7 +4352,8 @@ const pulse = 1 + Math.sin(performance.now() / 180) * 0.15;
     grad.addColorStop(0,glowColor); grad.addColorStop(1,'rgba(0,0,0,0)');
     ctx.beginPath(); ctx.fillStyle=grad; ctx.arc(x,y,20*pulse2,0,Math.PI*2); ctx.fill();
     ctx.font='20px sans-serif'; ctx.textAlign='center';
-    if(p.type==='revive'){
+    if(p.type==='abyssEgg'){ctx.save();ctx.shadowColor='#b66cff';ctx.shadowBlur=18;ctx.fillStyle='#372052';ctx.strokeStyle='#d6a5ff';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(x,y,13,18,0,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();}
+    else if(p.type==='revive'){
       const reviveImg = window.__reviveItemImage;
       if(reviveImg && reviveImg.complete && reviveImg.naturalWidth){
         const s = 38;
@@ -4441,14 +4450,15 @@ const pulse = 1 + Math.sin(performance.now() / 180) * 0.15;
         ctx.restore();
       }
     }
-    if(e.isBoss){const id=e.isTrueBossFinal?'truefinal':e.isTrueBoss?(e.trueBossRole||'kata')+(e.trueBossGachaActive?'gacha':e.trueBossTeddyActive?'teddy':e.artState===1?'hit':'normal'):e.isSuperBoss&&e.phase>1?'phase'+e.phase:e.key;discover(id);}
+    if(e.isBoss&&!e.abyss){const id=e.isTrueBossFinal?'truefinal':e.isTrueBoss?(e.trueBossRole||'kata')+(e.trueBossGachaActive?'gacha':e.trueBossTeddyActive?'teddy':e.artState===1?'hit':'normal'):e.isSuperBoss&&e.phase>1?'phase'+e.phase:e.key;discover(id);}
     const bossSprite = e.isBoss ? BOSS_SPRITES[e.key] : null;
     const trueBossSprite = e.isTrueBoss ? TRUE_BOSS_SPRITE : null;
     const finalTrueBossSprite = e.isTrueBossFinal ? TRUE_BOSS_FINAL_SPRITE : null;
     const phase2Sprite = (e.isSuperBoss && e.phase===2) ? BOSS_PHASE2_SPRITE : null;
     const phase3Sprite = (e.isSuperBoss && e.phase===3) ? BOSS_PHASE3_SPRITE : null;
     const mobSprite = (!e.isBoss) ? (ENEMY_SPRITES[e.spriteKey || e.key] || ENEMY_SPRITES[e.key]) : null;
-    if(e.isTrueBossFinal && drawFinalTrueBossSprite(ctx, e, ex, ey)){
+    if(e.abyss){drawAbyss(ctx,e,ex,ey);}
+    else if(e.isTrueBossFinal && drawFinalTrueBossSprite(ctx, e, ex, ey)){
     } else if(e.isTrueBoss && drawTrueBossRoleSprite(ctx, e, ex, ey)){
     } else if(phase3Sprite && phase3Sprite.loaded){
       drawBossPhase2SpriteExact(ctx, e, ex, ey, phase3Sprite);
@@ -4586,6 +4596,7 @@ function loop(now){
     return;
   }
 
+  if(abyssQuizPending&&state==='PLAYING'){abyssQuizPending=false;showAbyssQuiz();return;}
   elapsed += dt;
   if(Math.floor(elapsed)!==Math.floor(elapsed-dt))checkTitles();
   spawnTimer -= dt*1000;
@@ -4600,7 +4611,7 @@ function loop(now){
   applyBossPhase3MinionSprites();
   // 真ボス戦は今回指定された6枚を雑魚敵として使用。
   applyTrueBossMinionSprites();
-  if(!specialClearSequenceActive){
+  if(!specialClearSequenceActive&&!bossActive?.abyss){
     if(spawnTimer<=0){ spawnEnemy(); spawnTimer = spawnInterval; }
 
     if(!superBossSpawned && elapsed >= SUPER_BOSS_TIME){
@@ -4756,3 +4767,30 @@ window.__finalThankYouItemImage.src = 'assets/images/5e5cbdb27b64f3371be2c7e5.pn
 window.__finalThankYouSceneImage = 'assets/images/a7a434b6c47dd5365ea53402.jpg';
 window.__reviveItemImage = new Image();
 window.__reviveItemImage.src = "assets/images/cfc92cf84ff0b58bbdcad05c.png";
+
+// Optional secret encounter
+let abyssUsed=false,abyssCode=0,abyssSaved=null,abyssQuizPending=false;
+const abyssNames=['深淵のかたちゃん','侵蝕のかたちゃん','暴走のかたちゃん','深淵の女王かたちゃん'];
+const abyssColors=['#78e7a0','#a9db54','#f278a8','#c69bff'];
+const abyssSprites=abyssColors.map((c,i)=>{const img=new Image();img.src='assets/images/abyss-'+i+'.svg';return {img};});
+for(let i=0;i<4;i++)titleDefs.push(['abyssTitle'+i,['深淵を切り開く者','奇跡への挑戦','神話を超越せし者','不可能を可能にした者'][i],abyssNames[i]+'撃破',i===3?'all':'atk',i===3?10:2,4]);
+function dropAbyssEgg(x,y){if(abyssUsed)return;abyssUsed=true;powerups.push({x,y,type:'abyssEgg'});}
+const abyssSequence=['arrowup','arrowup','arrowdown','arrowdown','arrowleft','arrowright','arrowleft','arrowright','a','b'];
+window.addEventListener('keydown',ev=>{if(state!=='PLAYING'||ev.repeat||abyssUsed||bulletHell.active||bulletHell.warning)return;const k=ev.key.toLowerCase();abyssCode=k===abyssSequence[abyssCode]?abyssCode+1:k===abyssSequence[0]?1:0;if(abyssCode===abyssSequence.length){abyssCode=0;dropAbyssEgg(player.x+65,player.y);}});
+function showAbyssQuiz(){
+ state='ABYSS_QUIZ';Object.keys(keys).forEach(k=>keys[k]=false);
+ const panel=document.createElement('div');panel.id='abyss-dialog';panel.style.cssText='position:fixed;inset:0;z-index:100000;background:#10091def;display:flex;align-items:center;justify-content:center;padding:20px;color:white';document.body.append(panel);
+ const card=document.createElement('div');card.style.cssText='width:min(560px,95vw);max-height:90vh;overflow:auto;text-align:center;background:#25163a;border:2px solid #b68bea;border-radius:20px;padding:24px';panel.append(card);
+ function close(win){panel.remove();Object.keys(keys).forEach(k=>keys[k]=false);if(win)startAbyss();state='PLAYING';lastFrame=performance.now();requestAnimationFrame(loop);}
+ function message(text,win){card.replaceChildren();const h=document.createElement('h2');h.textContent=text;card.append(h);const b=document.createElement('button');b.textContent='進む';b.onclick=()=>close(win);card.append(b);}
+ function ask(q,opts,answer,next,shuffle=true){card.replaceChildren();const h=document.createElement('h2');h.textContent=q;card.append(h);const a=[...opts];if(shuffle)for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}for(const v of a){const b=document.createElement('button');b.textContent=v;b.style.cssText='display:block;width:100%;margin:8px 0;padding:12px;border-radius:10px;background:#493264;color:white;border:1px solid #a987d1;font-size:16px';b.onclick=()=>v===answer?next():message(q.startsWith('深淵')?'謎の卵は静かに消えていった……':'お前には資格がないようだ',false);card.append(b);}}
+ ask('深淵の扉を開く勇気はあるか？',['はい','いいえ'],'はい',()=>ask('かたちゃんの身長をこたえよ',['152センチ','155センチ','157センチ','160センチ'],'157センチ',()=>ask('かたちゃんの好きなバンドは',['スピッツ','BUMP OF CHICKEN','サザンオールスターズ','たま','Mr.Children','SEKAI NO OWARI','ポルノグラフィティ','RADWIMPS'],'たま',()=>message('深淵の扉が開かれた',true))),false);
+}
+function startAbyss(){
+ abyssSaved={enemies,bossActive,bossArenaCenter,enemyBolts,projectiles,zones,meteors};enemies=[];enemyBolts=[];projectiles=[];zones=[];meteors=[];bossArenaCenter=null;
+ const diff=DIFFICULTIES[difficulty], hp=TRUE_BOSS_FINAL.hp*diff.hpMul*bossKillMultiplier*(1+collectedHeartCount*.02), dmg=860/1.15*(1+collectedHeartCount*.001)*.5;
+ const e={x:player.x+220,y:player.y,hp:hp*10,maxHp:hp*10,abyssBase:hp,abyss:true,abyssPhase:0,abyssGrace:1.2,abyssTimer:2,abyssPattern:0,isBoss:true,isSuperBoss:false,name:abyssNames[0],key:'abyss',r:60,speed:45,dmg,color:abyssColors[0],dead:false,flash:0,hitTimer:0,poisonT:0,chillT:0,xpVal:0};enemies.push(e);bossActive=e;showBossAnnounce(e.name,true);triggerScreenFlash(500);
+}
+function abyssDefeat(e){const i=e.abyssPhase;discover('abyss'+i);unlockTitle('abyssTitle'+i);if(i===3){e.dead=true;const old=abyssSaved;abyssSaved=null;if(old){enemies=old.enemies;bossActive=old.bossActive;bossArenaCenter=old.bossArenaCenter;enemyBolts=old.enemyBolts;projectiles=old.projectiles;zones=old.zones;meteors=old.meteors;}spawnText(player.x,player.y-45,'深淵を超えた！','#e2baff',22);return;}e.abyssPhase++;e.name=abyssNames[i+1];e.color=abyssColors[i+1];e.hp=e.maxHp=e.abyssBase*[10,25,50,100][i+1];e.abyssGrace=1.5;e.abyssTimer=2;e.abyssPattern=0;e.poisonT=0;e.chillT=0;e.abyssWarning=null;enemyBolts=[];showBossAnnounce(e.name,true);triggerScreenFlash(500);}
+function updateAbyss(e,dt){const i=e.abyssPhase;e.abyssGrace=Math.max(0,e.abyssGrace-dt);e.hp=Math.min(e.maxHp,e.hp+e.maxHp*[0,.001,.003,.005][i]*dt);if(e.abyssGrace>0)return;const w=e.abyssWarning;if(w){w.t-=dt;if(w.t>0)return;e.abyssWarning=null;const dmg=100.8*[1.5,2,3,4][i]*DIFFICULTIES[difficulty].dmgMul*(1+collectedHeartCount*.001);if(w.kind===0||w.kind===3){if(dist(player.x,player.y,w.x,w.y)<w.r)applyBossDamageToPlayer(e,dmg);spawnRing(w.x,w.y,e.color,w.r,450);}else{const n=w.kind===1?12:w.kind===2?18:24;for(let j=0;j<n;j++){const a=w.angle+j*Math.PI*2/n;enemyBolts.push({x:e.x,y:e.y,vx:Math.cos(a)*190,vy:Math.sin(a)*190,dmg,r:8,life:3000,color:e.color});}}e.abyssTimer=Math.max(1.1,3-i*.45);return;}e.abyssTimer-=dt;if(e.abyssTimer<=0){const kind=e.abyssPattern++%[2,3,4,6][i];e.abyssWarning={kind,t:1.1,x:kind===3?player.x:e.x,y:kind===3?player.y:e.y,r:kind===3?115:160+i*20,angle:Math.atan2(player.y-e.y,player.x-e.x)};spawnText(e.x,e.y-e.r-30,['深淵の波動','星の嵐','旋回弾幕','深淵の領域','女王の審判','終焉の舞踏'][kind],e.color,18);}}
+function drawAbyss(ctx,e,x,y){const im=abyssSprites[e.abyssPhase].img;if(im.complete&&im.naturalWidth)ctx.drawImage(im,x-e.r*1.5,y-e.r*1.5,e.r*3,e.r*3);else drawEnemyShape(ctx,e,x,y);const w=e.abyssWarning;if(w){ctx.save();ctx.strokeStyle=e.color;ctx.lineWidth=3;ctx.setLineDash([8,5]);ctx.beginPath();ctx.arc(w.x-camX,w.y-camY,w.r,0,Math.PI*2);ctx.stroke();ctx.restore();}}
