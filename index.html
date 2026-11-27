@@ -25,9 +25,9 @@
   .w-icon{ width:34px; height:34px; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.4); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; color:#fff; position:relative; }
   .w-icon span{ position:absolute; bottom:-2px; right:0; font-size:9px; background:#333; border-radius:4px; padding:0 3px; }
 
-  #joystick-zone{ position:fixed; left:0; bottom:0; width:50%; height:50%; z-index:5; }
-  #joy-base{ position:absolute; width:100px; height:100px; border-radius:50%; background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.4); display:none; }
-  #joy-thumb{ position:absolute; width:46px; height:46px; border-radius:50%; background:rgba(255,255,255,0.55); display:none; }
+  #joystick-zone{ position:fixed; left:0; bottom:0; width:58%; height:68%; z-index:5; touch-action:none; }
+  #joy-base{ position:fixed; pointer-events:none; width:100px; height:100px; border-radius:50%; background:rgba(255,255,255,0.12); border:2px solid rgba(255,255,255,0.4); display:none; }
+  #joy-thumb{ position:fixed; pointer-events:none; width:46px; height:46px; border-radius:50%; background:rgba(255,255,255,0.55); display:none; }
 
   .overlay{ position:fixed; inset:0; background:rgba(5,5,15,0.94); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:20; color:#fff; text-align:center; padding:20px; }
   .hidden{ display:none !important; }
@@ -279,7 +279,7 @@
   </div>
 </div>
 
-<script src="js/game-1.js?v=abyss-arena1"></script>
+<script src="js/game-1.js?v=mobile-input2"></script>
 
 <style>
 #storySceneOverlay{position:fixed;inset:0;z-index:999999;background:#000;display:none}

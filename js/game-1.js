@@ -2297,31 +2297,31 @@ function setJoyVisible(v,x,y){
 function updateThumb(x,y){
   joyThumb.style.left=(x-23)+'px'; joyThumb.style.top=(y-23)+'px';
 }
-joyZone.addEventListener('touchstart', e=>{
-  if(joyActive) return;
-  const t = e.changedTouches[0];
-  joyActive=true; joyId=t.identifier; joyOrigin={x:t.clientX,y:t.clientY};
-  setJoyVisible(true,t.clientX,t.clientY);
-}, {passive:true});
-joyZone.addEventListener('touchmove', e=>{
-  for(const t of e.changedTouches){
-    if(t.identifier!==joyId) continue;
-    let dx=t.clientX-joyOrigin.x, dy=t.clientY-joyOrigin.y;
-    const d=Math.hypot(dx,dy), max=50;
-    if(d>max){ dx=dx/d*max; dy=dy/d*max; }
-    updateThumb(joyOrigin.x+dx, joyOrigin.y+dy);
-    moveDir.x = dx/max; moveDir.y = dy/max;
-  }
-}, {passive:true});
-function joyEnd(e){
-  for(const t of e.changedTouches){
-    if(t.identifier!==joyId) continue;
-    joyActive=false; joyId=null; moveDir.x=0; moveDir.y=0;
-    setJoyVisible(false,0,0);
-  }
+function resetJoy(){
+  const id=joyId; joyActive=false; joyId=null; moveDir.x=0; moveDir.y=0;
+  setJoyVisible(false,0,0);
+  if(id!==null && joyZone.hasPointerCapture(id)) joyZone.releasePointerCapture(id);
 }
-joyZone.addEventListener('touchend', joyEnd, {passive:true});
-joyZone.addEventListener('touchcancel', joyEnd, {passive:true});
+joyZone.addEventListener('pointerdown', e=>{
+  if(joyActive || state!=='PLAYING' || bulletHell.active || e.button!==0) return;
+  e.preventDefault(); joyActive=true; joyId=e.pointerId;
+  joyOrigin={x:e.clientX,y:e.clientY}; setJoyVisible(true,e.clientX,e.clientY);
+  try{joyZone.setPointerCapture(e.pointerId);}catch(_){}
+});
+window.addEventListener('pointermove', e=>{
+  if(!joyActive || e.pointerId!==joyId) return;
+  let dx=e.clientX-joyOrigin.x,dy=e.clientY-joyOrigin.y;
+  const d=Math.hypot(dx,dy),max=42;
+  if(d>max){dx*=max/d;dy*=max/d;}
+  updateThumb(joyOrigin.x+dx,joyOrigin.y+dy);
+  moveDir.x=dx/max;moveDir.y=dy/max;
+});
+function joyEnd(e){if(e.pointerId===joyId)resetJoy();}
+window.addEventListener('pointerup',joyEnd);
+window.addEventListener('pointercancel',joyEnd);
+joyZone.addEventListener('lostpointercapture',joyEnd);
+window.addEventListener('blur',resetJoy);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)resetJoy();});
 
 // keyboard fallback (desktop testing)
 const keys = {};
@@ -2392,8 +2392,10 @@ window.addEventListener('keydown', e=>{
 });
 window.addEventListener('keyup', e=>{ bulletHellKeys[e.key]=false; });
 window.addEventListener('blur', ()=>{ bulletHellKeys=Object.create(null); });
+let bulletPointerId=null;
 canvas.addEventListener('pointerdown', e=>{
-  if(!bulletHell.active) return;
+  if(!bulletHell.active || (bulletHell.pointerActive && bulletPointerId!==e.pointerId)) return;
+  e.preventDefault(); bulletPointerId=e.pointerId;
   bulletHell.pointerActive=true;
   const r=canvas.getBoundingClientRect();
   bulletHell.pointerX=(e.clientX-r.left)*(canvas.width/r.width);
@@ -2401,13 +2403,18 @@ canvas.addEventListener('pointerdown', e=>{
   try{canvas.setPointerCapture(e.pointerId);}catch(_){ }
 });
 canvas.addEventListener('pointermove', e=>{
-  if(!bulletHell.active || !bulletHell.pointerActive) return;
+  if(!bulletHell.active || !bulletHell.pointerActive || e.pointerId!==bulletPointerId) return;
   const r=canvas.getBoundingClientRect();
   bulletHell.pointerX=(e.clientX-r.left)*(canvas.width/r.width);
   bulletHell.pointerY=(e.clientY-r.top)*(canvas.height/r.height);
 });
-canvas.addEventListener('pointerup', e=>{ bulletHell.pointerActive=false; try{canvas.releasePointerCapture(e.pointerId);}catch(_){ } });
-canvas.addEventListener('pointercancel', ()=>{ bulletHell.pointerActive=false; });
+function endBulletPointer(e){if(e.pointerId!==bulletPointerId)return;bulletHell.pointerActive=false;bulletPointerId=null;}
+canvas.addEventListener('pointerup',endBulletPointer);
+canvas.addEventListener('pointercancel',endBulletPointer);
+canvas.addEventListener('lostpointercapture',endBulletPointer);
+window.addEventListener('blur',()=>{bulletHell.pointerActive=false;bulletPointerId=null;});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){bulletHell.pointerActive=false;bulletPointerId=null;}});
+
 
 function showBossAnnounce(name, isSuper){
   if(isSuper){
@@ -2470,6 +2477,9 @@ function updateHud(){
   const m = Math.floor(elapsed/60), s = Math.floor(elapsed%60);
   timeText.textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
   killText.textContent = '討伐: '+killCount;
+  const weaponSignature=JSON.stringify(player.weapons.map(w=>[w.id,w.level]));
+  if(weaponRow.dataset.signature!==weaponSignature){
+  weaponRow.dataset.signature=weaponSignature;
   weaponRow.innerHTML = '';
   player.weapons.forEach(w=>{
     const def = WEAPONS[w.id] || {icon:EVO_ICONS[w.id]};
@@ -2478,6 +2488,7 @@ function updateHud(){
     div.innerHTML = (def.icon||'❓') + (w.level?`<span>${w.level}</span>`:'');
     weaponRow.appendChild(div);
   });
+  }
   if(bossActive && bossActive.hp>0){
     bossHud.classList.remove('hidden');
     if(bossActive.isTrueBoss){
@@ -4591,6 +4602,8 @@ const pulse = 1 + Math.sin(performance.now() / 180) * 0.15;
 
 // ---------- Main loop ----------
 function loop(now){
+  if(state!=='PLAYING'||bulletHell.active)resetJoy();
+  joyZone.style.pointerEvents=bulletHell.active?'none':'';
   syncBulletHellHpHud();
   if(state!=='PLAYING') return;
   let dt = (now-lastFrame)/1000;
